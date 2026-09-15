@@ -6,20 +6,28 @@
 <title>Sistema Antirobo</title>
 <style>
   :root{
-    --bg:#f3f4f7;
+    --bg:#f5f5f8;
     --card:#ffffff;
-    --card-border:#eceef1;
-    --text:#1c1e21;
+    --card-border:#e9eaef;
+    --text:#14161a;
     --muted:#8a8f98;
-    --verde:#1fa855;
-    --verde-bg:#e3f6ea;
-    --verde-icon:#c9eeda;
-    --rojo:#e4423f;
-    --rojo-bg:#fbe6e6;
-    --rojo-icon:#f6c9c8;
-    --amarillo:#f5a623;
+    --verde:#17a34a;
+    --verde-bg:#e7f7ed;
+    --verde-icon:#cdedd9;
+    --rojo:#dc2626;
+    --rojo-bg:#fdecec;
+    --rojo-icon:#f8cfcf;
+    --azul:#2f6fed;
+    --azul-bg:#eaf1ff;
+    --azul-icon:#d3e2ff;
+    --naranja:#e8830f;
+    --naranja-bg:#fdf1e2;
+    --naranja-icon:#fbe1bb;
     --track:#eef0f3;
-    --shadow:0 1px 3px rgba(20,20,20,.04), 0 1px 2px rgba(20,20,20,.03);
+    --r-lg:22px;
+    --r-md:16px;
+    --r-sm:11px;
+    --shadow:0 1px 2px rgba(15,17,21,.04), 0 8px 20px -12px rgba(15,17,21,.12);
   }
   *{box-sizing:border-box}
   body{
@@ -29,12 +37,13 @@
     color:var(--text);
     display:flex;
     justify-content:center;
+    -webkit-font-smoothing:antialiased;
   }
   .app{
     width:100%;
-    max-width:400px;
+    max-width:420px;
     min-height:100vh;
-    padding:20px 16px 90px;
+    padding:22px 18px 96px;
     position:relative;
   }
   .tab[hidden]{display:none}
@@ -44,92 +53,112 @@
     display:flex;
     justify-content:space-between;
     align-items:center;
-    margin-bottom:16px;
+    margin-bottom:20px;
   }
-  .topbar-label{font-size:13px;color:var(--muted)}
-  .topbar-name{font-size:20px;font-weight:700;margin-top:1px}
+  .topbar-label{font-size:12.5px;color:var(--muted);letter-spacing:.2px}
+  .topbar-name{font-size:21px;font-weight:800;margin-top:2px;letter-spacing:-.2px}
   .gear{
-    width:36px;height:36px;
-    border-radius:12px;
+    width:38px;height:38px;
+    border-radius:13px;
     background:var(--card);
+    border:1px solid var(--card-border);
     box-shadow:var(--shadow);
     display:flex;align-items:center;justify-content:center;
     font-size:16px;
     color:var(--muted);
+    cursor:pointer;
+    transition:transform .15s, background .15s;
   }
+  .gear:active{transform:scale(.92); background:var(--track)}
 
   /* ---------- status card ---------- */
   .status-card{
-    border-radius:20px;
-    padding:26px 18px;
+    border-radius:26px;
+    padding:30px 20px;
     text-align:center;
     background:var(--verde-bg);
     transition:background .3s;
-    margin-bottom:14px;
+    margin-bottom:16px;
+    border:1px solid rgba(23,163,74,.12);
   }
-  .status-card.alarma{background:var(--rojo-bg)}
+  .status-card.alarma{background:var(--rojo-bg); border-color:rgba(220,38,38,.14)}
   .status-icon{
-    width:48px;height:48px;
+    width:56px;height:56px;
     border-radius:50%;
     background:var(--verde-icon);
     display:flex;align-items:center;justify-content:center;
-    margin:0 auto 10px;
-    font-size:22px;
+    margin:0 auto 12px;
+    font-size:25px;
   }
   .status-card.alarma .status-icon{background:var(--rojo-icon)}
-  .status-title{font-size:21px;font-weight:800;color:var(--verde)}
+  .status-title{font-size:22px;font-weight:800;color:var(--verde);letter-spacing:-.2px}
   .status-card.alarma .status-title{color:var(--rojo)}
-  .status-sub{font-size:13px;color:var(--muted);margin-top:5px}
+  .status-sub{font-size:13px;color:var(--muted);margin-top:6px}
 
   /* ---------- location ---------- */
   .location-row{
     display:flex;
     align-items:center;
-    gap:8px;
+    gap:10px;
     background:var(--card);
-    border-radius:14px;
-    padding:12px 14px;
-    font-size:13px;
+    border:1px solid var(--card-border);
+    border-radius:var(--r-md);
+    padding:13px 15px;
+    font-size:13.5px;
     color:var(--text);
     box-shadow:var(--shadow);
-    margin-bottom:18px;
+    margin-bottom:20px;
   }
   .location-row .pin{font-size:15px}
 
   /* ---------- sensors ---------- */
   .section-label{
     font-size:12px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.6px;
     color:var(--muted);
-    margin:0 2px 10px;
+    margin:0 2px 12px;
   }
   .sensor-card{
     background:var(--card);
-    border-radius:14px;
-    padding:14px 14px 12px;
+    border:1px solid var(--card-border);
+    border-radius:var(--r-md);
+    padding:15px 16px 14px;
     box-shadow:var(--shadow);
-    margin-bottom:10px;
+    margin-bottom:11px;
   }
   .sensor-row{
     display:flex;
     justify-content:space-between;
     align-items:center;
-    margin-bottom:8px;
+    margin-bottom:10px;
   }
   .sensor-name{
     display:flex;
     align-items:center;
-    gap:8px;
+    gap:10px;
     font-size:14px;
+    font-weight:600;
   }
-  .sensor-icon{font-size:15px}
+  .sensor-icon{
+    font-size:15px;
+    width:30px;height:30px;
+    border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .sensor-icon.azul{background:var(--azul-bg)}
+  .sensor-icon.naranja{background:var(--naranja-bg)}
+  .sensor-icon.amarillo{background:#fdf6de}
   .sensor-badge{
     font-size:12px;
-    font-weight:600;
+    font-weight:700;
     color:var(--muted);
   }
   .bar-track{
-    height:6px;
-    border-radius:4px;
+    height:7px;
+    border-radius:5px;
     background:var(--track);
     overflow:hidden;
   }
@@ -137,34 +166,36 @@
     height:100%;
     width:0%;
     background:var(--verde);
-    border-radius:4px;
+    border-radius:5px;
     transition:width .4s, background .3s;
   }
   .bar-fill.roja{background:var(--rojo)}
 
   /* ---------- alert detail ---------- */
-  .alert-detail{margin-top:6px}
+  .alert-detail{margin-top:8px}
   .detail-item{
     display:flex;
     justify-content:space-between;
     align-items:center;
     background:var(--card);
     border:1.5px solid var(--card-border);
-    border-radius:14px;
-    padding:13px 14px;
+    border-radius:var(--r-md);
+    padding:14px 15px;
     margin-bottom:10px;
     font-size:14px;
+    font-weight:600;
+    transition:border-color .2s, background .2s;
   }
   .detail-item.activo{
     border-color:var(--rojo);
-    background:#fff5f5;
+    background:#fff6f6;
   }
-  .detail-name{display:flex;align-items:center;gap:8px}
+  .detail-name{display:flex;align-items:center;gap:9px}
   .detail-value{
     font-size:12px;
     font-weight:700;
-    padding:4px 9px;
-    border-radius:8px;
+    padding:5px 10px;
+    border-radius:9px;
     background:var(--track);
     color:var(--muted);
   }
@@ -176,20 +207,21 @@
   .action-row{
     display:flex;
     gap:10px;
-    margin-top:6px;
+    margin-top:8px;
   }
   .btn{
     flex:1;
-    padding:13px;
-    border-radius:14px;
+    padding:14px;
+    border-radius:var(--r-md);
     border:1.5px solid var(--card-border);
     background:var(--card);
     font-size:14px;
-    font-weight:600;
+    font-weight:700;
     cursor:pointer;
     color:var(--text);
+    transition:transform .1s, opacity .1s;
   }
-  .btn:active{opacity:.8}
+  .btn:active{transform:scale(.97); opacity:.85}
   .btn-danger{
     border-color:var(--rojo);
     color:var(--rojo);
@@ -198,21 +230,51 @@
 
   .pie{
     text-align:center;
-    font-size:11px;
+    font-size:11.5px;
     color:var(--muted);
-    margin-top:14px;
+    margin-top:16px;
   }
 
   /* ---------- historial ---------- */
   .historial-item{
     background:var(--card);
-    border-radius:14px;
+    border-radius:var(--r-md);
     box-shadow:var(--shadow);
-    padding:13px 14px;
-    margin-bottom:10px;
+    padding:14px 16px;
+    margin-bottom:11px;
+    border-left:3px solid var(--rojo);
   }
-  .historial-item .h-titulo{font-weight:700;font-size:14px;color:var(--rojo)}
-  .historial-item .h-detalle{color:var(--muted);font-size:12px;margin-top:3px}
+  .historial-item .h-titulo{font-weight:700;font-size:14px;color:var(--rojo);display:flex;align-items:center;gap:6px}
+  .historial-item .h-detalle{color:var(--muted);font-size:12px;margin-top:4px}
+  .historial-item img{width:100%;border-radius:12px;margin-top:10px;display:block}
+
+  /* ---------- cámara ---------- */
+  .camara-frame{
+    background:#000;
+    border-radius:var(--r-lg);
+    overflow:hidden;
+    box-shadow:var(--shadow);
+    border:1px solid var(--card-border);
+    min-height:280px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+  }
+  .camara-frame video{width:100%;display:block}
+  .camara-frame .pie{color:#d7d9de; margin:0; padding:0 24px}
+  .camara-estado{
+    text-align:center;
+    font-size:12.5px;
+    color:var(--muted);
+    margin-top:14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+  }
+  .punto-vivo{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .punto-vivo.on{background:var(--rojo)}
 
   /* ---------- bottom nav ---------- */
   .bottomnav{
@@ -220,15 +282,17 @@
     left:0;right:0;bottom:0;
     display:flex;
     justify-content:center;
-    background:var(--card);
+    background:rgba(255,255,255,.92);
+    backdrop-filter:blur(10px);
     border-top:1px solid var(--card-border);
-    padding:8px 0 calc(8px + env(safe-area-inset-bottom));
+    padding:9px 10px calc(9px + env(safe-area-inset-bottom));
   }
   .bottomnav-inner{
     width:100%;
-    max-width:400px;
+    max-width:420px;
     display:flex;
     justify-content:space-around;
+    gap:4px;
   }
   .nav-btn{
     background:none;
@@ -236,15 +300,18 @@
     display:flex;
     flex-direction:column;
     align-items:center;
-    gap:2px;
-    font-size:11px;
+    gap:3px;
+    font-size:10.5px;
+    font-weight:600;
     color:var(--muted);
-    padding:4px 10px;
+    padding:6px 14px;
+    border-radius:14px;
     cursor:pointer;
+    transition:background .15s, color .15s;
   }
-  .nav-btn span{font-size:11px}
+  .nav-btn span{font-size:10.5px}
   .nav-btn .ico{font-size:19px}
-  .nav-btn.active{color:var(--text)}
+  .nav-btn.active{color:var(--text); background:var(--track)}
   .nav-btn:disabled{opacity:.35;cursor:default}
 </style>
 </head>
@@ -278,7 +345,7 @@
 
     <div class="sensor-card">
       <div class="sensor-row">
-        <div class="sensor-name"><span class="sensor-icon">🔊</span>Sonido</div>
+        <div class="sensor-name"><span class="sensor-icon azul">🔊</span>Sonido</div>
         <div class="sensor-badge" id="sonidoBadge">- dB</div>
       </div>
       <div class="bar-track"><div class="bar-fill" id="barraSonido"></div></div>
@@ -286,7 +353,7 @@
 
     <div class="sensor-card">
       <div class="sensor-row">
-        <div class="sensor-name"><span class="sensor-icon">🏃</span>Movimiento</div>
+        <div class="sensor-name"><span class="sensor-icon naranja">🏃</span>Movimiento</div>
         <div class="sensor-badge" id="movBadge">Sin detección</div>
       </div>
       <div class="bar-track"><div class="bar-fill" id="barraMov"></div></div>
@@ -294,7 +361,7 @@
 
     <div class="sensor-card">
       <div class="sensor-row">
-        <div class="sensor-name"><span class="sensor-icon">💡</span>Luz</div>
+        <div class="sensor-name"><span class="sensor-icon amarillo">💡</span>Luz</div>
         <div class="sensor-badge" id="luzBadge">- lux</div>
       </div>
       <div class="bar-track"><div class="bar-fill" id="barraLuz"></div></div>
@@ -332,26 +399,28 @@
     <div id="historial"><div class="pie">Sin alertas registradas.</div></div>
   </div>
 
-</div>
+  <!-- ==================== TAB: CÁMARA ==================== -->
+  <div class="tab" id="tabCamara" hidden>
+    <div class="section-label">Cámara en vivo</div>
 
-<!-- ==================== MODAL: CÁMARA ==================== -->
-<div id="modalCamara" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:50;align-items:center;justify-content:center;padding:20px">
-  <div style="width:100%;max-width:400px;background:var(--card);border-radius:20px;padding:18px;text-align:center">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <span style="font-weight:700;font-size:15px">📷 Cámara</span>
-      <button id="btnCerrarCamara" style="border:none;background:var(--track);width:28px;height:28px;border-radius:50%;font-size:14px;cursor:pointer">✕</button>
+    <div class="camara-frame">
+      <video id="videoCamara" autoplay playsinline muted hidden></video>
+      <div id="camaraSinFoto" class="pie">Conectando con la cámara...</div>
     </div>
-    <video id="videoCamara" autoplay playsinline muted hidden style="width:100%;border-radius:14px;background:#000"></video>
-    <div id="camaraSinFoto" class="pie" style="margin-top:20px">Conectando con la cámara...</div>
-    <div id="camaraFecha" class="pie" style="margin-top:8px">-</div>
+
+    <div class="camara-estado">
+      <div class="punto-vivo" id="camaraPunto"></div>
+      <span id="camaraFecha">-</span>
+    </div>
   </div>
+
 </div>
 
 <div class="bottomnav">
   <div class="bottomnav-inner">
     <button class="nav-btn active" id="navInicio" data-tab="tabInicio"><span class="ico">🏠</span><span>Inicio</span></button>
     <button class="nav-btn" id="navHistorial" data-tab="tabHistorial"><span class="ico">🕐</span><span>Historial</span></button>
-    <button class="nav-btn" id="navCamara"><span class="ico">📷</span><span>Cámara</span></button>
+    <button class="nav-btn" id="navCamara" data-tab="tabCamara"><span class="ico">📷</span><span>Cámara</span></button>
     <button class="nav-btn" id="navNotif" disabled><span class="ico">🔔</span><span>Alertas</span></button>
   </div>
 </div>
@@ -421,34 +490,37 @@ document.getElementById('btnSilenciar').addEventListener('click', () => {
 });
 
 /* ---------------- Cámara: video en vivo por WebRTC ---------------- */
-const modalCamara = document.getElementById('modalCamara');
 const videoCamara = document.getElementById('videoCamara');
 const camaraSinFoto = document.getElementById('camaraSinFoto');
 const camaraFecha = document.getElementById('camaraFecha');
+const camaraPunto = document.getElementById('camaraPunto');
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
 let socketCamara = null;
 let pcCamara = null;
 
-function abrirCamara() {
-  modalCamara.style.display = 'flex';
+function conectarCamara() {
   camaraSinFoto.hidden = false;
   camaraSinFoto.textContent = 'Conectando con la cámara...';
   videoCamara.hidden = true;
-  camaraFecha.textContent = '-';
+  camaraFecha.textContent = 'Conectando...';
+  camaraPunto.classList.remove('on');
 
   socketCamara = io();
 
   socketCamara.on('connect', () => socketCamara.emit('quiero-ver'));
 
   socketCamara.on('connect_error', () => {
-    camaraSinFoto.textContent = 'Sesión vencida — cerrá esto y volvé a entrar.';
+    camaraSinFoto.textContent = 'Sesión vencida — volvé a entrar.';
+    camaraFecha.textContent = '-';
   });
 
   socketCamara.on('camara-desconectada', () => {
     camaraSinFoto.hidden = false;
     camaraSinFoto.textContent = 'El teléfono-cámara no está conectado ahora mismo.';
     videoCamara.hidden = true;
+    camaraFecha.textContent = 'Sin señal';
+    camaraPunto.classList.remove('on');
   });
 
   socketCamara.on('oferta', async ({ offer }) => {
@@ -459,6 +531,7 @@ function abrirCamara() {
       videoCamara.hidden = false;
       camaraSinFoto.hidden = true;
       camaraFecha.textContent = 'En vivo';
+      camaraPunto.classList.add('on');
     };
     pcCamara.onicecandidate = (e) => {
       if (e.candidate) socketCamara.emit('ice-candidato', { candidate: e.candidate });
@@ -468,6 +541,8 @@ function abrirCamara() {
         camaraSinFoto.hidden = false;
         camaraSinFoto.textContent = 'Se cortó la conexión con la cámara.';
         videoCamara.hidden = true;
+        camaraFecha.textContent = 'Sin señal';
+        camaraPunto.classList.remove('on');
       }
     };
 
@@ -482,16 +557,14 @@ function abrirCamara() {
   });
 }
 
-function cerrarCamara() {
-  modalCamara.style.display = 'none';
+function desconectarCamara() {
   if (pcCamara) { pcCamara.close(); pcCamara = null; }
   if (socketCamara) { socketCamara.disconnect(); socketCamara = null; }
   videoCamara.srcObject = null;
+  camaraPunto.classList.remove('on');
 }
 
-document.getElementById('btnCamara').addEventListener('click', abrirCamara);
-document.getElementById('navCamara').addEventListener('click', abrirCamara);
-document.getElementById('btnCerrarCamara').addEventListener('click', cerrarCamara);
+document.getElementById('btnCamara').addEventListener('click', () => mostrarTab('tabCamara'));
 
 document.getElementById('btnSalir').addEventListener('click', async () => {
   try { await fetch('/api/logout', { method: 'POST' }); } catch (e) {}
@@ -503,9 +576,17 @@ function mostrarTab(id) {
   document.querySelectorAll('.tab').forEach(t => t.hidden = (t.id !== id));
   document.getElementById('navInicio').classList.toggle('active', id === 'tabInicio');
   document.getElementById('navHistorial').classList.toggle('active', id === 'tabHistorial');
+  document.getElementById('navCamara').classList.toggle('active', id === 'tabCamara');
+
+  if (id === 'tabCamara') {
+    conectarCamara();
+  } else {
+    desconectarCamara();
+  }
 }
 document.getElementById('navInicio').addEventListener('click', () => mostrarTab('tabInicio'));
 document.getElementById('navHistorial').addEventListener('click', () => mostrarTab('tabHistorial'));
+document.getElementById('navCamara').addEventListener('click', () => mostrarTab('tabCamara'));
 
 /* ---------------- Utilidades de tiempo ---------------- */
 function segundosDesde(fecha) {
@@ -616,9 +697,9 @@ async function actualizar() {
     if (d.eventos && d.eventos.length > 0) {
       hist.innerHTML = d.eventos.slice(0, 10).map(ev => `
         <div class="historial-item">
-          <div class="h-titulo">Intrusión detectada</div>
+          <div class="h-titulo">🚨 Intrusión detectada</div>
           <div class="h-detalle">${new Date(ev.fecha).toLocaleString()} — sonido: ${ev.sonido} dB · luz: ${ev.luz} lux</div>
-          ${ev.foto ? `<img src="${ev.foto}" style="width:100%;border-radius:10px;margin-top:8px">` : ''}
+          ${ev.foto ? `<img src="${ev.foto}">` : ''}
         </div>
       `).join('');
     }

@@ -6,14 +6,15 @@
 <title>Ingresar — Sistema Antirobo</title>
 <style>
   :root{
-    --bg:#f3f4f7;
+    --bg:#f5f5f8;
     --card:#ffffff;
-    --card-border:#eceef1;
-    --text:#1c1e21;
+    --card-border:#e9eaef;
+    --text:#14161a;
     --muted:#8a8f98;
-    --rojo:#e4423f;
-    --rojo-bg:#fbe6e6;
-    --shadow:0 1px 3px rgba(20,20,20,.04), 0 1px 2px rgba(20,20,20,.03);
+    --verde:#17a34a;
+    --rojo:#dc2626;
+    --rojo-bg:#fdecec;
+    --shadow:0 1px 2px rgba(15,17,21,.04), 0 8px 20px -12px rgba(15,17,21,.12);
   }
   *{box-sizing:border-box}
   body{
@@ -26,70 +27,81 @@
     align-items:center;
     justify-content:center;
     padding:20px;
+    -webkit-font-smoothing:antialiased;
   }
   .card{
     width:100%;
-    max-width:340px;
+    max-width:350px;
     background:var(--card);
-    border-radius:20px;
+    border:1px solid var(--card-border);
+    border-radius:26px;
     box-shadow:var(--shadow);
-    padding:28px 24px;
+    padding:32px 26px;
   }
   .icono{
-    width:48px;height:48px;
+    width:56px;height:56px;
     border-radius:50%;
-    background:#e3f6ea;
+    background:#e7f7ed;
     display:flex;align-items:center;justify-content:center;
-    margin:0 auto 14px;
-    font-size:22px;
+    margin:0 auto 16px;
+    font-size:25px;
   }
   h1{
-    font-size:19px;
+    font-size:20px;
+    font-weight:800;
     text-align:center;
     margin:0 0 4px;
+    letter-spacing:-.2px;
   }
   p.sub{
     text-align:center;
     font-size:13px;
     color:var(--muted);
-    margin:0 0 22px;
+    margin:0 0 26px;
   }
   label{
     display:block;
     font-size:12px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.4px;
     color:var(--muted);
-    margin-bottom:6px;
+    margin-bottom:7px;
   }
   input{
     width:100%;
-    padding:12px 13px;
-    border-radius:12px;
+    padding:13px 14px;
+    border-radius:13px;
     border:1.5px solid var(--card-border);
     font-size:14px;
-    margin-bottom:14px;
+    margin-bottom:16px;
     background:var(--bg);
     color:var(--text);
+    transition:border-color .15s;
   }
-  input:focus{outline:none;border-color:#1c1e21}
+  input:focus{outline:none;border-color:var(--verde)}
   button{
     width:100%;
-    padding:13px;
-    border-radius:14px;
+    padding:14px;
+    border-radius:15px;
     border:none;
     background:var(--text);
     color:#fff;
     font-size:14px;
     font-weight:700;
     cursor:pointer;
+    transition:transform .1s, opacity .1s;
   }
+  button:active{transform:scale(.98)}
   button:disabled{opacity:.6;cursor:default}
   .error{
     background:var(--rojo-bg);
     color:var(--rojo);
     font-size:13px;
-    padding:10px 12px;
-    border-radius:10px;
-    margin-bottom:14px;
+    font-weight:600;
+    padding:11px 13px;
+    border-radius:12px;
+    margin-bottom:16px;
     display:none;
   }
 </style>
