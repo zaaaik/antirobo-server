@@ -274,11 +274,6 @@
       <span id="locationText">Bodega trasera — puerta norte</span>
     </div>
 
-    <div class="location-row" id="btnVerCamaraSiempre" style="cursor:pointer">
-      <span class="pin">📷</span>
-      <span>Ver cámara en vivo</span>
-    </div>
-
     <div class="section-label">Sensores en vivo</div>
 
     <div class="sensor-card">
@@ -494,7 +489,6 @@ function cerrarCamara() {
   videoCamara.srcObject = null;
 }
 
-document.getElementById('btnVerCamaraSiempre').addEventListener('click', abrirCamara);
 document.getElementById('btnCamara').addEventListener('click', abrirCamara);
 document.getElementById('navCamara').addEventListener('click', abrirCamara);
 document.getElementById('btnCerrarCamara').addEventListener('click', cerrarCamara);
