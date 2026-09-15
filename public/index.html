@@ -374,6 +374,8 @@
   <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M15 6 9 12 15 18"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
 </svg>
 
 <div class="app">
@@ -473,10 +475,22 @@
       <span id="camaraFecha">-</span>
     </div>
 
-    <button class="btn" id="btnAgregarPersona" style="margin-top:12px" disabled>+ Agregar persona conocida</button>
+    <div class="action-row" style="margin-top:16px">
+      <button class="btn" id="btnAgregarPersona" disabled style="background:var(--text);color:#fff;border-color:var(--text);display:flex;align-items:center;justify-content:center;gap:7px">
+        <svg class="icon"><use href="#i-plus"/></svg>Agregar rostro
+      </button>
+      <button class="btn" id="btnAdministrarPersonas">Administrar</button>
+    </div>
     <div class="pie" id="personasInfo">Cargando reconocimiento facial...</div>
+  </div>
 
-    <div class="section-label" style="margin-top:20px">Personas conocidas</div>
+  <!-- ==================== TAB: PERSONAS CONOCIDAS ==================== -->
+  <div class="tab" id="tabPersonas" hidden>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px">
+      <div class="gear" id="btnVolverPersonas" title="Volver"><svg class="icon"><use href="#i-chevron-left"/></svg></div>
+      <div class="topbar-name" style="font-size:19px">Personas conocidas</div>
+    </div>
+    <div class="section-label">Registradas</div>
     <div id="listaPersonas"></div>
   </div>
 
@@ -860,6 +874,10 @@ function mostrarTab(id) {
   document.getElementById('navHistorial').classList.toggle('active', id === 'tabHistorial');
   document.getElementById('navCamara').classList.toggle('active', id === 'tabCamara');
 
+  // "Personas conocidas" es una pantalla aparte (con su propio botón de volver),
+  // no una pestaña principal, así que ahí ocultamos la barra inferior.
+  document.querySelector('.bottomnav').style.display = (id === 'tabPersonas') ? 'none' : 'flex';
+
   if (id === 'tabCamara') {
     conectarCamara();
   } else {
@@ -869,6 +887,8 @@ function mostrarTab(id) {
 document.getElementById('navInicio').addEventListener('click', () => mostrarTab('tabInicio'));
 document.getElementById('navHistorial').addEventListener('click', () => mostrarTab('tabHistorial'));
 document.getElementById('navCamara').addEventListener('click', () => mostrarTab('tabCamara'));
+document.getElementById('btnAdministrarPersonas').addEventListener('click', () => mostrarTab('tabPersonas'));
+document.getElementById('btnVolverPersonas').addEventListener('click', () => mostrarTab('tabCamara'));
 
 /* ---------------- Utilidades de tiempo ---------------- */
 function segundosDesde(fecha) {
