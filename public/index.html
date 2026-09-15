@@ -5,31 +5,202 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sistema Antirobo</title>
 <style>
-body{font-family:sans-serif;max-width:420px;margin:20px auto;padding:0 16px;background:#f5f5f5}
-.tarjeta{border:1px solid #ddd;border-radius:12px;padding:20px;background:#fafafa}
-h2{text-align:center;margin-top:0}
-#estado{text-align:center;padding:12px;border-radius:8px;color:white;font-weight:bold;margin-bottom:16px;background:#2ecc71}
-#estado.alarma{background:#e74c3c}
-.fila{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee}
-.pie{text-align:center;margin-top:16px;font-size:12px;color:#888}
-#btnSonido{width:100%;padding:10px;margin-top:10px;background:#f39c12;color:white;border:none;border-radius:8px;font-size:14px}
-#historial{margin-top:16px;font-size:13px}
-#historial div{padding:4px 0;border-bottom:1px solid #eee}
+  :root{
+    --bg:#0d0d0d;
+    --card:#161616;
+    --card-border:#2a2a2a;
+    --text:#f2f2f2;
+    --muted:#9a9a9a;
+    --verde:#2ecc71;
+    --verde-bg:#12291c;
+    --rojo:#ff5c5c;
+    --rojo-bg:#2a1414;
+    --amarillo:#f5a623;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    padding:24px 16px;
+  }
+  .app{
+    width:100%;
+    max-width:400px;
+  }
+  .top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:14px;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:20px;
+    padding:20px;
+    margin-bottom:14px;
+  }
+  .titulo{
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:2px;
+  }
+  .nombre{
+    font-size:20px;
+    font-weight:700;
+    margin-bottom:16px;
+  }
+  .estado-box{
+    border-radius:16px;
+    padding:22px 16px;
+    text-align:center;
+    background:var(--verde-bg);
+    transition:background .3s;
+  }
+  .estado-box.alarma{
+    background:var(--rojo-bg);
+  }
+  .estado-icono{
+    width:46px;height:46px;
+    border-radius:50%;
+    background:rgba(46,204,113,.18);
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 10px;
+    font-size:22px;
+  }
+  .estado-box.alarma .estado-icono{
+    background:rgba(255,92,92,.18);
+  }
+  .estado-titulo{
+    font-size:22px;
+    font-weight:800;
+    color:var(--verde);
+  }
+  .estado-box.alarma .estado-titulo{
+    color:var(--rojo);
+  }
+  .estado-sub{
+    font-size:13px;
+    color:var(--muted);
+    margin-top:4px;
+  }
+  .sensores-label{
+    font-size:12px;
+    color:var(--muted);
+    margin:18px 0 10px;
+  }
+  .sensor{
+    margin-bottom:14px;
+  }
+  .sensor-fila{
+    display:flex;
+    justify-content:space-between;
+    font-size:14px;
+    margin-bottom:6px;
+  }
+  .sensor-fila b{
+    font-weight:700;
+  }
+  .barra-bg{
+    height:6px;
+    border-radius:4px;
+    background:#2a2a2a;
+    overflow:hidden;
+  }
+  .barra-fill{
+    height:100%;
+    background:var(--verde);
+    border-radius:4px;
+    transition:width .4s;
+  }
+  .barra-fill.roja{background:var(--rojo)}
+  .btn{
+    width:100%;
+    padding:13px;
+    border-radius:14px;
+    border:none;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:6px;
+  }
+  .btn-amarillo{
+    background:var(--amarillo);
+    color:#1a1a1a;
+  }
+  .btn-amarillo:disabled{
+    opacity:.5;
+  }
+  .pie{
+    text-align:center;
+    font-size:11px;
+    color:var(--muted);
+    margin-top:10px;
+  }
+  .historial-item{
+    padding:10px 0;
+    border-bottom:1px solid var(--card-border);
+    font-size:13px;
+  }
+  .historial-item:last-child{border-bottom:none}
+  .historial-item .h-titulo{font-weight:600}
+  .historial-item .h-detalle{color:var(--muted);font-size:12px;margin-top:2px}
 </style>
 </head>
 <body>
 
-<div class="tarjeta">
-  <h2>🛡 Sistema Antirobo</h2>
-  <div id="estado">Cargando...</div>
-  <div class="fila"><span>Sonido</span><b id="sonido">-</b></div>
-  <div class="fila"><span>Luz</span><b id="luz">-</b></div>
-  <div class="fila"><span>Distancia</span><b id="distancia">-</b></div>
-  <div class="fila"><span>Confirmaciones</span><b id="conf">-</b></div>
-  <div class="fila"><span>Alertas totales</span><b id="alertas">-</b></div>
-  <div class="pie" id="pie">-</div>
-  <button id="btnSonido" onclick="activarSonido()">🔊 Activar sonido de alerta</button>
-  <div id="historial"></div>
+<div class="app">
+  <div class="top">
+    <span id="reloj">--:--</span>
+    <span>Nodo 01</span>
+  </div>
+
+  <div class="card">
+    <div class="titulo">Dispositivo</div>
+    <div class="nombre">Sistema Antirobo</div>
+
+    <div class="estado-box" id="estadoBox">
+      <div class="estado-icono">🛡</div>
+      <div class="estado-titulo" id="estadoTitulo">Cargando...</div>
+      <div class="estado-sub" id="estadoSub">-</div>
+    </div>
+
+    <div class="sensores-label">Sensores en vivo</div>
+
+    <div class="sensor">
+      <div class="sensor-fila"><span>Sonido</span><b id="sonido">-</b></div>
+      <div class="barra-bg"><div class="barra-fill" id="barraSonido" style="width:0%"></div></div>
+    </div>
+
+    <div class="sensor">
+      <div class="sensor-fila"><span>Luz</span><b id="luz">-</b></div>
+      <div class="barra-bg"><div class="barra-fill" id="barraLuz" style="width:0%"></div></div>
+    </div>
+
+    <div class="sensor">
+      <div class="sensor-fila"><span>Distancia</span><b id="distancia">-</b></div>
+      <div class="barra-bg"><div class="barra-fill" id="barraDist" style="width:0%"></div></div>
+    </div>
+
+    <div class="sensor">
+      <div class="sensor-fila"><span>Confirmaciones</span><b id="conf">-</b></div>
+      <div class="barra-bg"><div class="barra-fill" id="barraConf" style="width:0%"></div></div>
+    </div>
+
+    <button class="btn btn-amarillo" id="btnSonido" onclick="activarSonido()">🔊 Activar sonido de alerta</button>
+    <div class="pie" id="pie">-</div>
+  </div>
+
+  <div class="card">
+    <div class="titulo" style="margin-bottom:10px">Historial · Alertas totales <b id="alertas">0</b></div>
+    <div id="historial"><div class="pie">Sin alertas registradas.</div></div>
+  </div>
 </div>
 
 <script>
@@ -38,8 +209,9 @@ let ctxGlobal = null;
 
 function activarSonido() {
   ctxGlobal = new (window.AudioContext || window.webkitAudioContext)();
-  document.getElementById('btnSonido').textContent = 'Sonido activado';
-  document.getElementById('btnSonido').disabled = true;
+  const b = document.getElementById('btnSonido');
+  b.textContent = '✓ Sonido activado';
+  b.disabled = true;
 }
 
 function pitar() {
@@ -57,6 +229,13 @@ function pitar() {
   } catch (e) {}
 }
 
+function actualizarReloj() {
+  const ahora = new Date();
+  document.getElementById('reloj').textContent =
+    ahora.getHours().toString().padStart(2,'0') + ':' +
+    ahora.getMinutes().toString().padStart(2,'0');
+}
+
 async function actualizar() {
   try {
     const r = await fetch('/api/datos');
@@ -68,13 +247,31 @@ async function actualizar() {
     document.getElementById('conf').textContent = d.confirmadas + '/' + d.objetivo;
     document.getElementById('alertas').textContent = d.alertas;
 
-    const e = document.getElementById('estado');
+    // Barras (valores aproximados de escala visual)
+    const pctSonido = Math.min(100, (d.sonido / 800) * 100);
+    const pctLuz = Math.min(100, (d.luz / 800) * 100);
+    const pctDist = d.distancia > 0 ? Math.min(100, 100 - (d.distancia / 2)) : 0;
+    const pctConf = Math.min(100, (d.confirmadas / d.objetivo) * 100);
+
+    document.getElementById('barraSonido').style.width = pctSonido + '%';
+    document.getElementById('barraLuz').style.width = pctLuz + '%';
+    document.getElementById('barraDist').style.width = pctDist + '%';
+    document.getElementById('barraConf').style.width = pctConf + '%';
+
+    const box = document.getElementById('estadoBox');
+    const titulo = document.getElementById('estadoTitulo');
+    const sub = document.getElementById('estadoSub');
+
     if (d.alarma) {
-      e.textContent = 'ALARMA';
-      e.classList.add('alarma');
+      box.classList.add('alarma');
+      titulo.textContent = 'Alerta de intrusión';
+      sub.textContent = 'Sonido + oscuridad detectados';
+      document.querySelectorAll('.barra-fill').forEach(b=>b.classList.add('roja'));
     } else {
-      e.textContent = 'VIGILANDO';
-      e.classList.remove('alarma');
+      box.classList.remove('alarma');
+      titulo.textContent = 'Vigilando';
+      sub.textContent = 'Sin novedades';
+      document.querySelectorAll('.barra-fill').forEach(b=>b.classList.remove('roja'));
     }
 
     if (d.alarma && !alarmaAnterior) pitar();
@@ -87,15 +284,21 @@ async function actualizar() {
 
     const hist = document.getElementById('historial');
     if (d.eventos && d.eventos.length > 0) {
-      hist.innerHTML = '<b>Historial:</b>' + d.eventos.slice(0, 5).map(ev =>
-        `<div>${new Date(ev.fecha).toLocaleString()} — sonido:${ev.sonido} luz:${ev.luz}</div>`
-      ).join('');
+      hist.innerHTML = d.eventos.slice(0, 6).map(ev => `
+        <div class="historial-item">
+          <div class="h-titulo">Intrusión detectada</div>
+          <div class="h-detalle">${new Date(ev.fecha).toLocaleString()} — sonido:${ev.sonido} luz:${ev.luz}</div>
+        </div>
+      `).join('');
     }
   } catch (err) {
-    document.getElementById('estado').textContent = 'Sin conexion al servidor';
+    document.getElementById('estadoTitulo').textContent = 'Sin conexión';
+    document.getElementById('estadoSub').textContent = 'Revisa el servidor';
   }
 }
 
+actualizarReloj();
+setInterval(actualizarReloj, 1000);
 actualizar();
 setInterval(actualizar, 2000);
 </script>
