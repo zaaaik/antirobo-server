@@ -57,6 +57,7 @@
     text-align:center;
     max-width:340px;
   }
+  canvas{display:none}
 </style>
 </head>
 <body>
@@ -73,8 +74,9 @@
 
 <div class="error" id="error" hidden></div>
 
-<canvas id="canvas" hidden></canvas>
+<canvas id="canvas"></canvas>
 
+<script src="/socket.io/socket.io.js"></script>
 <script>
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
@@ -82,25 +84,40 @@ const punto = document.getElementById('punto');
 const textoEstado = document.getElementById('textoEstado');
 const errorDiv = document.getElementById('error');
 
-const INTERVALO_CHEQUEO = 200;  // pausa entre una foto y la siguiente mientras transmite
-const ANCHO_FOTO = 400;         // resolución reducida para que las fotos sean livianas y rápidas
+const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+const ANCHO_FOTO = 480; // resolución de la foto que se guarda cuando salta una alarma
+
+let stream = null;
+let socket = null;
+const peers = {}; // viewerId -> RTCPeerConnection
+let viewersConectados = 0;
+
+function actualizarEstadoUI() {
+  if (viewersConectados > 0) {
+    textoEstado.textContent = 'Transmitiendo (' + viewersConectados + ' viendo)';
+    punto.className = 'punto transmitiendo';
+  } else {
+    textoEstado.textContent = 'En espera...';
+    punto.className = 'punto espera';
+  }
+}
 
 async function iniciarCamara() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
+    stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' } },
       audio: false
     });
     video.srcObject = stream;
-    textoEstado.textContent = 'En espera...';
-    punto.className = 'punto espera';
+    actualizarEstadoUI();
 
     // Evita que la pantalla se apague mientras esta página esté abierta (si el navegador lo soporta).
     if ('wakeLock' in navigator) {
       try { await navigator.wakeLock.request('screen'); } catch (e) {}
     }
 
-    cicloEnvio();
+    conectarSenializacion();
+    vigilarAlarma();
   } catch (err) {
     errorDiv.hidden = false;
     errorDiv.textContent = 'No se pudo acceder a la cámara: ' + err.message +
@@ -109,64 +126,96 @@ async function iniciarCamara() {
   }
 }
 
+/* ---------------- WebRTC: esta pantalla es la que transmite ---------------- */
+function conectarSenializacion() {
+  socket = io();
+
+  socket.on('connect', () => socket.emit('soy-camara'));
+
+  socket.on('connect_error', () => {
+    textoEstado.textContent = 'Sesión vencida — volvé a entrar';
+    punto.className = 'punto';
+    window.location.href = '/login.html';
+  });
+
+  // Llegó un nuevo espectador: le armamos una conexión y le mandamos una oferta.
+  socket.on('nuevo-viewer', async ({ viewerId }) => {
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    peers[viewerId] = pc;
+
+    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) socket.emit('ice-candidato', { viewerId, candidate: e.candidate });
+    };
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'connected') {
+        viewersConectados++;
+        actualizarEstadoUI();
+      } else if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
+        cerrarPeer(viewerId);
+      }
+    };
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('oferta', { viewerId, offer });
+  });
+
+  socket.on('respuesta', async ({ answer, viewerId }) => {
+    const pc = peers[viewerId];
+    if (pc) await pc.setRemoteDescription(answer);
+  });
+
+  socket.on('ice-candidato', ({ candidate, viewerId }) => {
+    const pc = peers[viewerId];
+    if (pc) pc.addIceCandidate(candidate).catch(() => {});
+  });
+
+  socket.on('viewer-desconectado', ({ viewerId }) => cerrarPeer(viewerId));
+}
+
+function cerrarPeer(viewerId) {
+  const pc = peers[viewerId];
+  if (!pc) return;
+  const estabaConectado = pc.connectionState === 'connected';
+  pc.close();
+  delete peers[viewerId];
+  if (estabaConectado) viewersConectados = Math.max(0, viewersConectados - 1);
+  actualizarEstadoUI();
+}
+
+/* ---------------- Foto automática cuando salta una alarma (para el historial) ---------------- */
+let ultimaAlarmaFotografiada = false;
+
 function capturarFrame() {
   const w = ANCHO_FOTO;
   const h = Math.round(video.videoHeight * (w / video.videoWidth)) || w;
   canvas.width = w;
   canvas.height = h;
   canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-  return canvas.toDataURL('image/jpeg', 0.4);
+  return canvas.toDataURL('image/jpeg', 0.6);
 }
 
-async function enviarFoto() {
+async function vigilarAlarma() {
   try {
-    const foto = capturarFrame();
-    await fetch('/api/camara/foto', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ foto })
-    });
-  } catch (e) {
-    // Falla de red puntual: no pasa nada, se reintenta en el próximo ciclo.
-  }
-}
-
-// El "¿alguien está mirando?" se consulta solo cada 2s (es barato, pero no
-// hace falta preguntarlo en cada foto); mientras tanto se usa el último
-// resultado guardado en cache para no perder tiempo entre foto y foto.
-let activoCache = false;
-let ultimoChequeo = 0;
-const INTERVALO_CHEQUEO_ACTIVO = 2000;
-
-async function cicloEnvio() {
-  try {
-    if (Date.now() - ultimoChequeo > INTERVALO_CHEQUEO_ACTIVO) {
-      const r = await fetch('/api/camara/activo');
-      if (r.status === 401) {
-        textoEstado.textContent = 'Sesión vencida — volvé a entrar';
-        punto.className = 'punto';
-        window.location.href = '/login.html';
-        return;
-      }
+    const r = await fetch('/api/datos');
+    if (r.ok) {
       const d = await r.json();
-      activoCache = d.activo;
-      ultimoChequeo = Date.now();
+      if (d.alarma && !ultimaAlarmaFotografiada) {
+        ultimaAlarmaFotografiada = true;
+        fetch('/api/camara/foto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ foto: capturarFrame() })
+        }).catch(() => {});
+      } else if (!d.alarma) {
+        ultimaAlarmaFotografiada = false;
+      }
     }
+  } catch (e) {}
 
-    if (activoCache) {
-      textoEstado.textContent = 'Transmitiendo...';
-      punto.className = 'punto transmitiendo';
-      await enviarFoto();
-    } else {
-      textoEstado.textContent = 'En espera...';
-      punto.className = 'punto espera';
-    }
-  } catch (e) {
-    textoEstado.textContent = 'Sin conexión con el servidor...';
-    punto.className = 'punto';
-  }
-
-  setTimeout(cicloEnvio, INTERVALO_CHEQUEO);
+  setTimeout(vigilarAlarma, 3000);
 }
 
 iniciarCamara();

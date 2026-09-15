@@ -3,14 +3,20 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const http = require('http');
+const cookie = require('cookie');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+const { Server } = require('socket.io');
 
 const User = require('./models/User');
-const { crearToken, requireAuth } = require('./middleware/auth');
+const { crearToken, requireAuth, JWT_SECRET } = require('./middleware/auth');
 
 const app = express();
+const servidorHttp = http.createServer(app);
+const io = new Server(servidorHttp);
 const PORT = process.env.PORT || 3000;
 
 // Render está detrás de un proxy HTTPS; esto hace que req.secure y
@@ -111,9 +117,10 @@ let estado = {
 const MAX_EVENTOS = 20;
 let eventos = [];
 
-// ---------------- CÁMARA (fotos del teléfono) ----------------
+// ---------------- CÁMARA ----------------
+// Nota: el video en vivo va por WebRTC (más abajo), esto es solo para la
+// foto puntual que se guarda cuando se dispara una alarma.
 let ultimaFoto = null;   // { foto: "data:image/jpeg;base64,...", fecha: ISOString }
-let ultimaVista = 0;     // timestamp (ms) de la última vez que alguien pidió ver la cámara desde el dashboard
 
 // ---------------- RUTAS ----------------
 
@@ -160,9 +167,8 @@ app.get('/api/ping', (req, res) => {
   res.json({ ok: true, mensaje: 'Servidor activo' });
 });
 
-// ---------------- CÁMARA ----------------
-
-// El teléfono manda una foto nueva acá.
+// ---------------- CÁMARA: foto de respaldo para el historial de alarmas ----------------
+// (el video en vivo va aparte, por WebRTC, más abajo)
 app.post('/api/camara/foto', requireAuth, (req, res) => {
   const { foto } = req.body || {};
   if (!foto || typeof foto !== 'string' || !foto.startsWith('data:image/')) {
@@ -179,19 +185,75 @@ app.post('/api/camara/foto', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// El dashboard pide la última foto acá (y de paso "avisa" que alguien está mirando).
-app.get('/api/camara/foto', requireAuth, (req, res) => {
-  ultimaVista = Date.now();
-  res.json(ultimaFoto || { foto: null, fecha: null });
+// ================ WEBRTC: SEÑALIZACIÓN (video en vivo) ================
+// El servidor acá no ve ni un segundo de video: solo ayuda a que el
+// teléfono-cámara y el dashboard "se encuentren" y negocien la conexión
+// directa entre ellos (peer-to-peer). Una vez conectados, el video viaja
+// directo entre los dos dispositivos.
+
+// Solo se acepta la conexión de Socket.IO si trae una cookie de sesión válida
+// (la misma que usa el login normal).
+io.use((socket, next) => {
+  try {
+    const cookies = cookie.parse(socket.handshake.headers.cookie || '');
+    const token = cookies.token;
+    if (!token) return next(new Error('No autenticado'));
+    jwt.verify(token, JWT_SECRET);
+    next();
+  } catch (err) {
+    next(new Error('No autenticado'));
+  }
 });
 
-// El teléfono consulta acá si vale la pena seguir mandando fotos:
-// hay alguien mirando el dashboard ahora mismo, o hay una alarma activa.
-app.get('/api/camara/activo', requireAuth, (req, res) => {
-  const alguienMirando = (Date.now() - ultimaVista) < 2000;
-  res.json({ activo: alguienMirando || estado.alarma });
+let socketCamara = null; // el socket del teléfono que hace de cámara (solo puede haber uno a la vez)
+
+io.on('connection', (socket) => {
+  // El teléfono-cámara se anuncia acá.
+  socket.on('soy-camara', () => {
+    socketCamara = socket.id;
+  });
+
+  // El dashboard pide ver la cámara: se lo avisamos al teléfono-cámara
+  // para que le arme una conexión (oferta) a este viewer en particular.
+  socket.on('quiero-ver', () => {
+    if (socketCamara) {
+      io.to(socketCamara).emit('nuevo-viewer', { viewerId: socket.id });
+    } else {
+      socket.emit('camara-desconectada');
+    }
+  });
+
+  // Reenvíos de la negociación WebRTC (oferta / respuesta / candidatos ICE):
+  // el servidor no entiende ni toca el contenido, solo lo pasa al destinatario.
+  // La oferta siempre sale de la cámara hacia un viewer puntual:
+  socket.on('oferta', ({ viewerId, offer }) => {
+    io.to(viewerId).emit('oferta', { offer });
+  });
+  // La respuesta siempre sale de un viewer hacia la cámara (el viewer no
+  // sabe el id de la cámara, así que el servidor lo resuelve):
+  socket.on('respuesta', ({ answer }) => {
+    if (socketCamara) io.to(socketCamara).emit('respuesta', { answer, viewerId: socket.id });
+  });
+  // Los candidatos ICE viajan en los dos sentidos, según quién los mande:
+  socket.on('ice-candidato', ({ viewerId, candidate }) => {
+    if (socket.id === socketCamara) {
+      io.to(viewerId).emit('ice-candidato', { candidate });
+    } else if (socketCamara) {
+      io.to(socketCamara).emit('ice-candidato', { candidate, viewerId: socket.id });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    if (socket.id === socketCamara) {
+      socketCamara = null;
+      socket.broadcast.emit('camara-desconectada');
+    } else {
+      // Si era un viewer, avisamos a la cámara para que cierre esa conexión puntual.
+      if (socketCamara) io.to(socketCamara).emit('viewer-desconectado', { viewerId: socket.id });
+    }
+  });
 });
 
-app.listen(PORT, () => {
+servidorHttp.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });

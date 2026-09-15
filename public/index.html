@@ -346,8 +346,8 @@
       <span style="font-weight:700;font-size:15px">📷 Cámara</span>
       <button id="btnCerrarCamara" style="border:none;background:var(--track);width:28px;height:28px;border-radius:50%;font-size:14px;cursor:pointer">✕</button>
     </div>
-    <img id="imgCamara" hidden style="width:100%;border-radius:14px;background:#000">
-    <div id="camaraSinFoto" class="pie" style="margin-top:20px">Esperando imagen de la cámara...</div>
+    <video id="videoCamara" autoplay playsinline muted hidden style="width:100%;border-radius:14px;background:#000"></video>
+    <div id="camaraSinFoto" class="pie" style="margin-top:20px">Conectando con la cámara...</div>
     <div id="camaraFecha" class="pie" style="margin-top:8px">-</div>
   </div>
 </div>
@@ -361,6 +361,7 @@
   </div>
 </div>
 
+<script src="/socket.io/socket.io.js"></script>
 <script>
 /* ---------------- Config / escalas de visualización ----------------
    "sonido" y "luz" son lecturas analógicas crudas del Arduino (0–1023),
@@ -424,52 +425,73 @@ document.getElementById('btnSilenciar').addEventListener('click', () => {
   detenerBeepRepetido();
 });
 
-/* ---------------- Cámara (fotos "casi en vivo" del teléfono) ---------------- */
+/* ---------------- Cámara: video en vivo por WebRTC ---------------- */
 const modalCamara = document.getElementById('modalCamara');
-const imgCamara = document.getElementById('imgCamara');
+const videoCamara = document.getElementById('videoCamara');
 const camaraSinFoto = document.getElementById('camaraSinFoto');
 const camaraFecha = document.getElementById('camaraFecha');
-let camaraActiva = false;
+const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
-async function actualizarFotoCamara() {
-  try {
-    const r = await fetch('/api/camara/foto');
-    if (r.status === 401) { window.location.href = '/login.html'; return; }
-    if (!r.ok) {
-      camaraFecha.textContent = 'El servidor respondió con error ' + r.status + '. Reintentando...';
-      return;
-    }
-    const d = await r.json();
-    if (d.foto) {
-      imgCamara.src = d.foto;
-      imgCamara.hidden = false;
-      camaraSinFoto.hidden = true;
-      camaraFecha.textContent = 'Última imagen: ' + new Date(d.fecha).toLocaleTimeString();
-    } else {
-      imgCamara.hidden = true;
-      camaraSinFoto.hidden = false;
-      camaraFecha.textContent = 'Esperá a que el teléfono-cámara empiece a transmitir... (consultado ' + new Date().toLocaleTimeString() + ')';
-    }
-  } catch (e) {
-    camaraFecha.textContent = 'Error de conexión: ' + e.message;
-  }
-}
-
-async function cicloCamara() {
-  if (!camaraActiva) return;
-  await actualizarFotoCamara();
-  if (camaraActiva) setTimeout(cicloCamara, 200);
-}
+let socketCamara = null;
+let pcCamara = null;
 
 function abrirCamara() {
   modalCamara.style.display = 'flex';
-  camaraActiva = true;
-  cicloCamara();
+  camaraSinFoto.hidden = false;
+  camaraSinFoto.textContent = 'Conectando con la cámara...';
+  videoCamara.hidden = true;
+  camaraFecha.textContent = '-';
+
+  socketCamara = io();
+
+  socketCamara.on('connect', () => socketCamara.emit('quiero-ver'));
+
+  socketCamara.on('connect_error', () => {
+    camaraSinFoto.textContent = 'Sesión vencida — cerrá esto y volvé a entrar.';
+  });
+
+  socketCamara.on('camara-desconectada', () => {
+    camaraSinFoto.hidden = false;
+    camaraSinFoto.textContent = 'El teléfono-cámara no está conectado ahora mismo.';
+    videoCamara.hidden = true;
+  });
+
+  socketCamara.on('oferta', async ({ offer }) => {
+    pcCamara = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+    pcCamara.ontrack = (e) => {
+      videoCamara.srcObject = e.streams[0];
+      videoCamara.hidden = false;
+      camaraSinFoto.hidden = true;
+      camaraFecha.textContent = 'En vivo';
+    };
+    pcCamara.onicecandidate = (e) => {
+      if (e.candidate) socketCamara.emit('ice-candidato', { candidate: e.candidate });
+    };
+    pcCamara.onconnectionstatechange = () => {
+      if (['disconnected', 'failed', 'closed'].includes(pcCamara.connectionState)) {
+        camaraSinFoto.hidden = false;
+        camaraSinFoto.textContent = 'Se cortó la conexión con la cámara.';
+        videoCamara.hidden = true;
+      }
+    };
+
+    await pcCamara.setRemoteDescription(offer);
+    const answer = await pcCamara.createAnswer();
+    await pcCamara.setLocalDescription(answer);
+    socketCamara.emit('respuesta', { answer });
+  });
+
+  socketCamara.on('ice-candidato', ({ candidate }) => {
+    if (pcCamara) pcCamara.addIceCandidate(candidate).catch(() => {});
+  });
 }
 
 function cerrarCamara() {
   modalCamara.style.display = 'none';
-  camaraActiva = false;
+  if (pcCamara) { pcCamara.close(); pcCamara = null; }
+  if (socketCamara) { socketCamara.disconnect(); socketCamara = null; }
+  videoCamara.srcObject = null;
 }
 
 document.getElementById('btnVerCamaraSiempre').addEventListener('click', abrirCamara);

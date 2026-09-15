@@ -13,7 +13,9 @@
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "cookie-parser": "^1.4.6",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "socket.io": "^4.7.5",
+    "cookie": "^0.6.0"
   },
   "engines": {
     "node": ">=18.0.0"
