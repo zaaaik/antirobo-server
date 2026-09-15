@@ -610,21 +610,27 @@ const personasInfo = document.getElementById('personasInfo');
 const UMBRAL_RECONOCIMIENTO = 0.6; // más bajo = más estricto para considerar "la misma persona"
 
 let faceApiListo = false;
+let cocoListo = false;
+let modeloPersonas = null;    // instancia de coco-ssd, una vez cargado
 let personasConocidas = [];   // [{ nombre, descriptor: Float32Array }]
 let intervaloDeteccion = null;
 let ultimaDeteccionUnica = null; // guarda el descriptor si hay exactamente 1 cara en el cuadro actual
+
+function cargarScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
 
 async function cargarFaceApi() {
   if (faceApiListo) return;
   personasInfo.textContent = 'Cargando reconocimiento facial...';
 
-  await new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = '/vendor/face-api/face-api.min.js';
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
+  await cargarScript('/vendor/face-api/face-api.min.js');
 
   const MODELOS = '/vendor/face-api/models';
   await Promise.all([
@@ -635,6 +641,23 @@ async function cargarFaceApi() {
 
   faceApiListo = true;
   await cargarPersonasConocidas();
+}
+
+// Modelo aparte que detecta "hay una persona acá" aunque no se le vea la cara
+// (mirando para otro lado, tapada, etc.). Corre más espaciado que la
+// detección de caras porque es más pesado.
+async function cargarDetectorPersonas() {
+  if (cocoListo) return;
+  try {
+    await cargarScript('/vendor/tfjs/tf.min.js');
+    await cargarScript('/vendor/tfjs/coco-ssd.min.js');
+    modeloPersonas = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+    cocoListo = true;
+  } catch (e) {
+    // Si falla (ej. sin internet para bajar los pesos del modelo desde
+    // Google), el reconocimiento de caras sigue funcionando igual.
+    cocoListo = false;
+  }
 }
 
 async function cargarPersonasConocidas() {
@@ -662,12 +685,18 @@ function identificar(descriptor) {
 
 async function iniciarReconocimientoFacial() {
   await cargarFaceApi();
+  cargarDetectorPersonas(); // en paralelo, no bloquea el reconocimiento de caras
   if (intervaloDeteccion) return; // ya está corriendo
+
   canvasCamara.hidden = false;
   btnAgregarPersona.disabled = false;
 
+  let ciclo = 0;
+  let personasSinCara = []; // se recalcula cada 2 ciclos, se sigue dibujando en el medio
+
   intervaloDeteccion = setInterval(async () => {
     if (videoCamara.readyState < 2 || videoCamara.videoWidth === 0) return;
+    ciclo++;
 
     canvasCamara.width = videoCamara.videoWidth;
     canvasCamara.height = videoCamara.videoHeight;
@@ -680,6 +709,22 @@ async function iniciarReconocimientoFacial() {
       .withFaceDescriptors();
 
     ultimaDeteccionUnica = detecciones.length === 1 ? detecciones[0].descriptor : null;
+    const cajasCaras = detecciones.map(d => d.detection.box);
+
+    // La detección de personas es más pesada: se recalcula cada 2 ciclos (~1.8s).
+    if (cocoListo && ciclo % 2 === 0) {
+      const objetos = await modeloPersonas.detect(videoCamara);
+      const personas = objetos.filter(o => o.class === 'person');
+      personasSinCara = personas.filter(p => {
+        const [px, py, pw, ph] = p.bbox;
+        // ¿El centro de alguna cara detectada cae dentro de este cuerpo? Si es
+        // así, esa persona ya está identificada (o marcada "Desconocido") arriba.
+        return !cajasCaras.some(c => {
+          const cx = c.x + c.width / 2, cy = c.y + c.height / 2;
+          return cx >= px && cx <= px + pw && cy >= py && cy <= py + ph;
+        });
+      });
+    }
 
     ctx.lineWidth = Math.max(2, canvasCamara.width / 200);
     ctx.font = Math.max(14, canvasCamara.width / 25) + 'px sans-serif';
@@ -693,6 +738,15 @@ async function iniciarReconocimientoFacial() {
       ctx.fillStyle = ctx.strokeStyle;
       const textoY = box.y > 20 ? box.y - 4 : box.y + box.height + 16;
       ctx.fillText(nombre, box.x, textoY);
+    }
+
+    for (const p of personasSinCara) {
+      const [px, py, pw, ph] = p.bbox;
+      ctx.strokeStyle = '#c98a06';
+      ctx.strokeRect(px, py, pw, ph);
+      ctx.fillStyle = '#c98a06';
+      const textoY = py > 20 ? py - 4 : py + ph + 16;
+      ctx.fillText('Rostro no identificable', px, textoY);
     }
   }, 900);
 }
