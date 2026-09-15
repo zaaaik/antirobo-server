@@ -578,8 +578,22 @@ const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
 let socketCamara = null;
 let pcCamara = null;
+let camaraLista = false; // ya tenemos video en vivo corriendo (no hace falta reconectar)
 
 function conectarCamara() {
+  // Si ya está conectada (o conectándose), no volvemos a negociar todo de
+  // nuevo — solo mostramos lo que ya hay y reanudamos el reconocimiento.
+  if (socketCamara) {
+    if (camaraLista) {
+      videoCamara.hidden = false;
+      camaraSinFoto.hidden = true;
+      camaraFecha.textContent = 'En vivo';
+      camaraPunto.classList.add('on');
+      iniciarReconocimientoFacial();
+    }
+    return;
+  }
+
   camaraSinFoto.hidden = false;
   camaraSinFoto.textContent = 'Conectando con la cámara...';
   videoCamara.hidden = true;
@@ -593,6 +607,8 @@ function conectarCamara() {
   socketCamara.on('connect_error', () => {
     camaraSinFoto.textContent = 'Sesión vencida — volvé a entrar.';
     camaraFecha.textContent = '-';
+    socketCamara = null;
+    camaraLista = false;
   });
 
   socketCamara.on('camara-desconectada', () => {
@@ -601,6 +617,8 @@ function conectarCamara() {
     videoCamara.hidden = true;
     camaraFecha.textContent = 'Sin señal';
     camaraPunto.classList.remove('on');
+    camaraLista = false;
+    detenerReconocimientoFacial();
   });
 
   socketCamara.on('oferta', async ({ offer }) => {
@@ -612,6 +630,7 @@ function conectarCamara() {
       camaraSinFoto.hidden = true;
       camaraFecha.textContent = 'En vivo';
       camaraPunto.classList.add('on');
+      camaraLista = true;
       iniciarReconocimientoFacial();
     };
     pcCamara.onicecandidate = (e) => {
@@ -624,6 +643,10 @@ function conectarCamara() {
         videoCamara.hidden = true;
         camaraFecha.textContent = 'Sin señal';
         camaraPunto.classList.remove('on');
+        camaraLista = false;
+        detenerReconocimientoFacial();
+        if (socketCamara) { socketCamara.disconnect(); socketCamara = null; }
+        pcCamara = null;
       }
     };
 
@@ -638,11 +661,10 @@ function conectarCamara() {
   });
 }
 
-function desconectarCamara() {
-  if (pcCamara) { pcCamara.close(); pcCamara = null; }
-  if (socketCamara) { socketCamara.disconnect(); socketCamara = null; }
-  videoCamara.srcObject = null;
-  camaraPunto.classList.remove('on');
+// Al salir de la pestaña Cámara NO cortamos la conexión (así al volver no
+// hay que reconectar de cero) — solo pausamos el reconocimiento facial,
+// que es lo único que realmente consume CPU mientras no se está mirando.
+function pausarCamara() {
   detenerReconocimientoFacial();
 }
 
@@ -881,7 +903,7 @@ function mostrarTab(id) {
   if (id === 'tabCamara') {
     conectarCamara();
   } else {
-    desconectarCamara();
+    pausarCamara();
   }
 }
 document.getElementById('navInicio').addEventListener('click', () => mostrarTab('tabInicio'));
