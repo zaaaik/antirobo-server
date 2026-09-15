@@ -460,6 +460,26 @@
     <div id="historial"><div class="pie">Sin alertas registradas.</div></div>
   </div>
 
+  <!-- ==================== TAB: ALERTAS (notificaciones push) ==================== -->
+  <div class="tab" id="tabAlertas" hidden>
+    <div class="section-label">Notificaciones</div>
+
+    <div class="sensor-card">
+      <div class="sensor-row" style="margin-bottom:4px">
+        <div class="sensor-name"><span class="sensor-icon azul"><svg class="icon"><use href="#i-bell"/></svg></span>Avisos push</div>
+      </div>
+      <div class="pie" id="notifEstado" style="text-align:left;margin:0 0 12px">Consultando estado...</div>
+      <button class="btn" id="btnActivarNotif" style="width:100%">Activar notificaciones</button>
+    </div>
+
+    <button class="btn" id="btnProbarNotif" style="width:100%;margin-top:10px" disabled>Enviar notificación de prueba</button>
+
+    <div class="pie" style="margin-top:18px">
+      Te va a llegar un aviso a este dispositivo apenas se dispare una alarma, aunque no tengas esta página abierta.
+      En iPhone hace falta agregar la app a la pantalla de inicio para que funcione (Safari → Compartir → Agregar a inicio).
+    </div>
+  </div>
+
   <!-- ==================== TAB: CÁMARA ==================== -->
   <div class="tab" id="tabCamara" hidden>
     <div class="section-label">Cámara en vivo</div>
@@ -501,7 +521,7 @@
     <button class="nav-btn active" id="navInicio" data-tab="tabInicio"><svg class="icon"><use href="#i-home"/></svg><span>Inicio</span></button>
     <button class="nav-btn" id="navHistorial" data-tab="tabHistorial"><svg class="icon"><use href="#i-clock"/></svg><span>Historial</span></button>
     <button class="nav-btn" id="navCamara" data-tab="tabCamara"><svg class="icon"><use href="#i-camera"/></svg><span>Cámara</span></button>
-    <button class="nav-btn" id="navNotif" disabled><svg class="icon"><use href="#i-bell"/></svg><span>Alertas</span></button>
+    <button class="nav-btn" id="navNotif" data-tab="tabAlertas"><svg class="icon"><use href="#i-bell"/></svg><span>Alertas</span></button>
   </div>
 </div>
 
@@ -895,6 +915,7 @@ function mostrarTab(id) {
   document.getElementById('navInicio').classList.toggle('active', id === 'tabInicio');
   document.getElementById('navHistorial').classList.toggle('active', id === 'tabHistorial');
   document.getElementById('navCamara').classList.toggle('active', id === 'tabCamara');
+  document.getElementById('navNotif').classList.toggle('active', id === 'tabAlertas');
 
   // "Personas conocidas" es una pantalla aparte (con su propio botón de volver),
   // no una pestaña principal, así que ahí ocultamos la barra inferior.
@@ -909,8 +930,108 @@ function mostrarTab(id) {
 document.getElementById('navInicio').addEventListener('click', () => mostrarTab('tabInicio'));
 document.getElementById('navHistorial').addEventListener('click', () => mostrarTab('tabHistorial'));
 document.getElementById('navCamara').addEventListener('click', () => mostrarTab('tabCamara'));
+document.getElementById('navNotif').addEventListener('click', () => mostrarTab('tabAlertas'));
 document.getElementById('btnAdministrarPersonas').addEventListener('click', () => mostrarTab('tabPersonas'));
 document.getElementById('btnVolverPersonas').addEventListener('click', () => mostrarTab('tabCamara'));
+
+/* ---------------- Notificaciones push ---------------- */
+const notifEstado = document.getElementById('notifEstado');
+const btnActivarNotif = document.getElementById('btnActivarNotif');
+const btnProbarNotif = document.getElementById('btnProbarNotif');
+
+// El navegador pide la clave pública en formato binario, no en el
+// base64url que usa el servidor — esto convierte de uno a otro.
+function base64UrlABuffer(base64url) {
+  const padding = '='.repeat((4 - (base64url.length % 4)) % 4);
+  const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const buffer = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) buffer[i] = raw.charCodeAt(i);
+  return buffer;
+}
+
+async function actualizarEstadoNotif() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    notifEstado.textContent = 'Este navegador no soporta notificaciones push.';
+    btnActivarNotif.disabled = true;
+    return;
+  }
+
+  const registro = await navigator.serviceWorker.register('/sw.js');
+  const suscripcion = await registro.pushManager.getSubscription();
+
+  if (suscripcion) {
+    notifEstado.textContent = 'Las notificaciones están activadas en este dispositivo.';
+    btnActivarNotif.textContent = 'Desactivar notificaciones';
+    btnProbarNotif.disabled = false;
+  } else {
+    notifEstado.textContent = Notification.permission === 'denied'
+      ? 'Bloqueaste los permisos de notificación en este navegador — para activarlas, habilitalas desde la configuración del sitio.'
+      : 'Todavía no activaste las notificaciones en este dispositivo.';
+    btnActivarNotif.textContent = 'Activar notificaciones';
+    btnActivarNotif.disabled = Notification.permission === 'denied';
+    btnProbarNotif.disabled = true;
+  }
+}
+
+btnActivarNotif.addEventListener('click', async () => {
+  const registro = await navigator.serviceWorker.register('/sw.js');
+  const suscripcionActual = await registro.pushManager.getSubscription();
+
+  if (suscripcionActual) {
+    // Desactivar
+    await fetch('/api/notificaciones/desuscribir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: suscripcionActual.endpoint })
+    });
+    await suscripcionActual.unsubscribe();
+    await actualizarEstadoNotif();
+    return;
+  }
+
+  const permiso = await Notification.requestPermission();
+  if (permiso !== 'granted') {
+    await actualizarEstadoNotif();
+    return;
+  }
+
+  try {
+    const r = await fetch('/api/notificaciones/clave-publica');
+    const { clave } = await r.json();
+    if (!clave) {
+      notifEstado.textContent = 'El servidor todavía no tiene configuradas las notificaciones.';
+      return;
+    }
+
+    const nuevaSuscripcion = await registro.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: base64UrlABuffer(clave)
+    });
+
+    await fetch('/api/notificaciones/suscribir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nuevaSuscripcion.toJSON())
+    });
+
+    await actualizarEstadoNotif();
+  } catch (e) {
+    notifEstado.textContent = 'No se pudo activar: ' + e.message;
+  }
+});
+
+btnProbarNotif.addEventListener('click', async () => {
+  btnProbarNotif.disabled = true;
+  btnProbarNotif.textContent = 'Enviando...';
+  try {
+    await fetch('/api/notificaciones/probar', { method: 'POST' });
+  } catch (e) {}
+  btnProbarNotif.textContent = 'Enviar notificación de prueba';
+  btnProbarNotif.disabled = false;
+});
+
+if ('serviceWorker' in navigator) actualizarEstadoNotif();
 
 /* ---------------- Utilidades de tiempo ---------------- */
 function segundosDesde(fecha) {

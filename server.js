@@ -10,9 +10,11 @@ const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const { Server } = require('socket.io');
+const webpush = require('web-push');
 
 const User = require('./models/User');
 const Persona = require('./models/Persona');
+const Suscripcion = require('./models/Suscripcion');
 const { crearToken, requireAuth, JWT_SECRET } = require('./middleware/auth');
 
 const app = express();
@@ -27,6 +29,42 @@ app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '2mb' })); // las fotos de la cámara van en base64 acá
 app.use(cookieParser());
+
+// ---------------- NOTIFICACIONES PUSH ----------------
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    'mailto:no-reply@antirobo.local',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+} else {
+  console.warn('VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY no configurados: las notificaciones push no van a funcionar.');
+}
+
+// Le manda la notificación a todos los dispositivos suscriptos. Si algún
+// endpoint ya no es válido (el usuario desinstaló, borró permisos, etc.),
+// lo borramos de la base para no seguir intentando en vano.
+async function notificarATodos(titulo, cuerpo) {
+  if (!process.env.VAPID_PUBLIC_KEY) return;
+
+  const suscripciones = await Suscripcion.find();
+  const payload = JSON.stringify({ title: titulo, body: cuerpo, url: '/' });
+
+  await Promise.all(suscripciones.map(async (s) => {
+    try {
+      await webpush.sendNotification(
+        { endpoint: s.endpoint, keys: s.keys },
+        payload
+      );
+    } catch (err) {
+      if (err.statusCode === 404 || err.statusCode === 410) {
+        await Suscripcion.deleteOne({ _id: s._id });
+      } else {
+        console.error('Error enviando notificación push:', err.message);
+      }
+    }
+  }));
+}
 
 // ---------------- BASE DE DATOS ----------------
 if (process.env.MONGODB_URI) {
@@ -137,6 +175,8 @@ let ultimaFoto = null;   // { foto: "data:image/jpeg;base64,...", fecha: ISOStri
 app.post('/api/datos', (req, res) => {
   const { sonido, luz, luzUmbral, distancia, alarma, confirmadas, objetivo, alertas, segundos } = req.body;
 
+  const alarmaEstabaActiva = estado.alarma; // para detectar cuándo ARRANCA una alarma nueva
+
   estado = {
     sonido: sonido ?? estado.sonido,
     luz: luz ?? estado.luz,
@@ -150,8 +190,10 @@ app.post('/api/datos', (req, res) => {
     ultimaActualizacion: new Date().toISOString()
   };
 
-  // Si es una alerta nueva, la guardamos en el historial
-  if (alarma) {
+  // Si es una alerta NUEVA (el Arduino sigue mandando alarma:true varias
+  // veces mientras dura la misma alerta), la guardamos en el historial y
+  // avisamos por notificación push — una sola vez por evento, no en cada POST.
+  if (alarma && !alarmaEstabaActiva) {
     eventos.unshift({
       fecha: new Date().toISOString(),
       sonido: estado.sonido,
@@ -160,6 +202,9 @@ app.post('/api/datos', (req, res) => {
       foto: null // se completa cuando llegue una foto de la cámara mientras esta alarma esté activa
     });
     if (eventos.length > MAX_EVENTOS) eventos.pop();
+
+    notificarATodos('⚠️ Alerta de intrusión', 'Sonido: ' + estado.sonido + ' · Luz: ' + estado.luz + ' · Distancia: ' + estado.distancia + ' cm')
+      .catch(err => console.error('Error al notificar:', err.message));
   }
 
   console.log('Datos recibidos:', estado);
@@ -174,6 +219,39 @@ app.get('/api/datos', requireAuth, (req, res) => {
 // Ruta de salud, para confirmar que el servidor está vivo
 app.get('/api/ping', (req, res) => {
   res.json({ ok: true, mensaje: 'Servidor activo' });
+});
+
+// ---------------- NOTIFICACIONES PUSH ----------------
+
+// La clave pública la necesita el navegador para suscribirse.
+app.get('/api/notificaciones/clave-publica', requireAuth, (req, res) => {
+  res.json({ clave: process.env.VAPID_PUBLIC_KEY || null });
+});
+
+app.post('/api/notificaciones/suscribir', requireAuth, async (req, res) => {
+  const { endpoint, keys } = req.body || {};
+  if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+    return res.status(400).json({ ok: false, error: 'Suscripción inválida.' });
+  }
+
+  await Suscripcion.findOneAndUpdate(
+    { endpoint },
+    { endpoint, keys },
+    { upsert: true }
+  );
+  res.json({ ok: true });
+});
+
+app.post('/api/notificaciones/desuscribir', requireAuth, async (req, res) => {
+  const { endpoint } = req.body || {};
+  if (endpoint) await Suscripcion.deleteOne({ endpoint });
+  res.json({ ok: true });
+});
+
+// Botón "Probar" desde el dashboard, para confirmar que las notificaciones llegan.
+app.post('/api/notificaciones/probar', requireAuth, async (req, res) => {
+  await notificarATodos('🔔 Notificación de prueba', 'Si ves esto, las notificaciones están funcionando.');
+  res.json({ ok: true });
 });
 
 // ---------------- CÁMARA: foto de respaldo para el historial de alarmas ----------------
