@@ -66,8 +66,8 @@ async function notificarATodos(titulo, cuerpo) {
         await Suscripcion.deleteOne({ _id: s._id });
         errores.push('Una suscripción vencida se eliminó (código ' + err.statusCode + ').');
       } else {
-        console.error('Error enviando notificación push:', err.statusCode, err.message);
-        errores.push('Código ' + err.statusCode + ': ' + err.message);
+        console.error('Error enviando notificación push:', err.statusCode, err.body || err.message);
+        errores.push('Código ' + err.statusCode + ': ' + (err.body || err.message));
       }
     }
   }));
