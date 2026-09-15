@@ -356,7 +356,7 @@
   <div class="bottomnav-inner">
     <button class="nav-btn active" id="navInicio" data-tab="tabInicio"><span class="ico">🏠</span><span>Inicio</span></button>
     <button class="nav-btn" id="navHistorial" data-tab="tabHistorial"><span class="ico">🕐</span><span>Historial</span></button>
-    <button class="nav-btn" id="navMapa" disabled><span class="ico">🗺️</span><span>Mapa</span></button>
+    <button class="nav-btn" id="navCamara"><span class="ico">📷</span><span>Cámara</span></button>
     <button class="nav-btn" id="navNotif" disabled><span class="ico">🔔</span><span>Alertas</span></button>
   </div>
 </div>
@@ -496,6 +496,7 @@ function cerrarCamara() {
 
 document.getElementById('btnVerCamaraSiempre').addEventListener('click', abrirCamara);
 document.getElementById('btnCamara').addEventListener('click', abrirCamara);
+document.getElementById('navCamara').addEventListener('click', abrirCamara);
 document.getElementById('btnCerrarCamara').addEventListener('click', cerrarCamara);
 
 document.getElementById('btnSalir').addEventListener('click', async () => {
