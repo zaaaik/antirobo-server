@@ -13,6 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 let estado = {
   sonido: 0,
   luz: 0,
+  luzUmbral: null,   // umbral de "sin luz" calibrado por el Arduino al arrancar
   distancia: 0,
   alarma: false,
   confirmadas: 0,
@@ -29,11 +30,12 @@ let eventos = [];
 
 // El Arduino envía datos aquí (POST)
 app.post('/api/datos', (req, res) => {
-  const { sonido, luz, distancia, alarma, confirmadas, objetivo, alertas, segundos } = req.body;
+  const { sonido, luz, luzUmbral, distancia, alarma, confirmadas, objetivo, alertas, segundos } = req.body;
 
   estado = {
     sonido: sonido ?? estado.sonido,
     luz: luz ?? estado.luz,
+    luzUmbral: luzUmbral ?? estado.luzUmbral,
     distancia: distancia ?? estado.distancia,
     alarma: alarma ?? estado.alarma,
     confirmadas: confirmadas ?? estado.confirmadas,

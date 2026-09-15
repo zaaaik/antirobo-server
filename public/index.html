@@ -345,11 +345,13 @@
 
 <script>
 /* ---------------- Config / escalas de visualización ----------------
-   Estos umbrales son solo para la interfaz (qué se marca en rojo).
-   Ajustalos si cambian los rangos reales del Arduino. */
-const SONIDO_MAX = 100;      // escala de la barra de sonido
-const SONIDO_UMBRAL = 60;    // a partir de aquí se considera "activado"
-const LUZ_MAX = 100;         // escala de la barra de luz
+   "sonido" y "luz" son lecturas analógicas crudas del Arduino (0–1023),
+   no dB/lux reales — se etiquetan así solo por estética visual.
+   SONIDO_UMBRAL debe coincidir con UMBRAL_SONIDO en arduino/antirobo.ino;
+   si cambiás uno, cambiá el otro. */
+const SONIDO_MAX = 1023;     // escala de la barra de sonido (rango del ADC)
+const SONIDO_UMBRAL = 410;   // debe coincidir con UMBRAL_SONIDO del Arduino
+const LUZ_MAX = 1023;        // escala de la barra de luz (rango del ADC)
 
 /* "Movimiento" se calcula con el HC-SR04 (sensor de distancia): si algo
    corta el haz y queda más cerca que DISTANCIA_UMBRAL, se considera
@@ -443,8 +445,8 @@ async function actualizar() {
     ultimaActDate = d.ultimaActualizacion ? new Date(d.ultimaActualizacion) : new Date();
 
     // Movimiento real, a partir de la distancia del HC-SR04.
-    // distancia <= 0 suele ser una lectura inválida del sensor (timeout),
-    // no lo tratamos como "algo muy cerca".
+    // Cuando el sensor no recibe eco (timeout), el Arduino envía 999 cm
+    // ("muy lejos"), así que nunca dispara este umbral por error.
     const movimientoDetectado = d.distancia > 0 && d.distancia < DISTANCIA_UMBRAL;
 
     // --- Badges y barras ---
@@ -458,6 +460,11 @@ async function actualizar() {
 
     const sonidoActivo = d.sonido > SONIDO_UMBRAL;
 
+    // El umbral de luz se calibra en el Arduino al arrancar y llega en
+    // d.luzUmbral (ver arduino/antirobo.ino). Si todavía no llegó ningún
+    // dato con ese campo (firmware viejo), no marcamos Luz como activada.
+    const luzActiva = d.luzUmbral != null && d.luz > d.luzUmbral;
+
     const barraSonido = document.getElementById('barraSonido');
     const barraLuz = document.getElementById('barraLuz');
     const barraMov = document.getElementById('barraMov');
@@ -468,7 +475,7 @@ async function actualizar() {
 
     barraSonido.classList.toggle('roja', sonidoActivo);
     barraMov.classList.toggle('roja', movimientoDetectado);
-    barraLuz.classList.remove('roja');
+    barraLuz.classList.toggle('roja', luzActiva);
 
     // --- Card de estado ---
     const card = document.getElementById('statusCard');
@@ -491,11 +498,13 @@ async function actualizar() {
       // Detalle de qué se activó
       document.getElementById('detSonidoValor').textContent = d.sonido + ' dB · umbral ' + SONIDO_UMBRAL;
       document.getElementById('detMovValor').textContent = d.distancia + ' cm · umbral ' + DISTANCIA_UMBRAL;
-      document.getElementById('detLuzValor').textContent = d.luz + ' lux · normal';
+      document.getElementById('detLuzValor').textContent = d.luzUmbral != null
+        ? d.luz + ' lux · umbral ' + d.luzUmbral
+        : d.luz + ' lux · normal';
 
       document.getElementById('detSonido').classList.toggle('activo', sonidoActivo);
       document.getElementById('detMov').classList.toggle('activo', movimientoDetectado);
-      document.getElementById('detLuz').classList.remove('activo');
+      document.getElementById('detLuz').classList.toggle('activo', luzActiva);
 
     } else {
       card.classList.remove('alarma');
