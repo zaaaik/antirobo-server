@@ -274,6 +274,11 @@
       <span id="locationText">Bodega trasera — puerta norte</span>
     </div>
 
+    <div class="location-row" id="btnVerCamaraSiempre" style="cursor:pointer">
+      <span class="pin">📷</span>
+      <span>Ver cámara en vivo</span>
+    </div>
+
     <div class="section-label">Sensores en vivo</div>
 
     <div class="sensor-card">
@@ -332,6 +337,19 @@
     <div id="historial"><div class="pie">Sin alertas registradas.</div></div>
   </div>
 
+</div>
+
+<!-- ==================== MODAL: CÁMARA ==================== -->
+<div id="modalCamara" hidden style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="width:100%;max-width:400px;background:var(--card);border-radius:20px;padding:18px;text-align:center">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span style="font-weight:700;font-size:15px">📷 Cámara</span>
+      <button id="btnCerrarCamara" style="border:none;background:var(--track);width:28px;height:28px;border-radius:50%;font-size:14px;cursor:pointer">✕</button>
+    </div>
+    <img id="imgCamara" hidden style="width:100%;border-radius:14px;background:#000">
+    <div id="camaraSinFoto" class="pie" style="margin-top:20px">Esperando imagen de la cámara...</div>
+    <div id="camaraFecha" class="pie" style="margin-top:8px">-</div>
+  </div>
 </div>
 
 <div class="bottomnav">
@@ -406,9 +424,45 @@ document.getElementById('btnSilenciar').addEventListener('click', () => {
   detenerBeepRepetido();
 });
 
-document.getElementById('btnCamara').addEventListener('click', () => {
-  alert('La vista de cámara estará disponible próximamente.');
-});
+/* ---------------- Cámara (fotos "casi en vivo" del teléfono) ---------------- */
+const modalCamara = document.getElementById('modalCamara');
+const imgCamara = document.getElementById('imgCamara');
+const camaraSinFoto = document.getElementById('camaraSinFoto');
+const camaraFecha = document.getElementById('camaraFecha');
+let intervaloCamara = null;
+
+async function actualizarFotoCamara() {
+  try {
+    const r = await fetch('/api/camara/foto');
+    if (r.status === 401) { window.location.href = '/login.html'; return; }
+    const d = await r.json();
+    if (d.foto) {
+      imgCamara.src = d.foto;
+      imgCamara.hidden = false;
+      camaraSinFoto.hidden = true;
+      camaraFecha.textContent = 'Última imagen: ' + new Date(d.fecha).toLocaleTimeString();
+    } else {
+      imgCamara.hidden = true;
+      camaraSinFoto.hidden = false;
+      camaraFecha.textContent = 'Esperá a que el teléfono-cámara empiece a transmitir...';
+    }
+  } catch (e) {}
+}
+
+function abrirCamara() {
+  modalCamara.hidden = false;
+  actualizarFotoCamara();
+  intervaloCamara = setInterval(actualizarFotoCamara, 1500);
+}
+
+function cerrarCamara() {
+  modalCamara.hidden = true;
+  if (intervaloCamara) { clearInterval(intervaloCamara); intervaloCamara = null; }
+}
+
+document.getElementById('btnVerCamaraSiempre').addEventListener('click', abrirCamara);
+document.getElementById('btnCamara').addEventListener('click', abrirCamara);
+document.getElementById('btnCerrarCamara').addEventListener('click', cerrarCamara);
 
 document.getElementById('btnSalir').addEventListener('click', async () => {
   try { await fetch('/api/logout', { method: 'POST' }); } catch (e) {}
@@ -535,6 +589,7 @@ async function actualizar() {
         <div class="historial-item">
           <div class="h-titulo">Intrusión detectada</div>
           <div class="h-detalle">${new Date(ev.fecha).toLocaleString()} — sonido: ${ev.sonido} dB · luz: ${ev.luz} lux</div>
+          ${ev.foto ? `<img src="${ev.foto}" style="width:100%;border-radius:10px;margin-top:8px">` : ''}
         </div>
       `).join('');
     }

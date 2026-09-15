@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 1);
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' })); // las fotos de la cámara van en base64 acá
 app.use(cookieParser());
 
 // ---------------- BASE DE DATOS ----------------
@@ -87,6 +87,11 @@ app.get(['/', '/index.html'], requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Página que abre el teléfono que hace de cámara (también requiere login)
+app.get('/camara-emisor.html', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'camara-emisor.html'));
+});
+
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ---------------- ESTADO EN MEMORIA ----------------
@@ -105,6 +110,10 @@ let estado = {
 
 const MAX_EVENTOS = 20;
 let eventos = [];
+
+// ---------------- CÁMARA (fotos del teléfono) ----------------
+let ultimaFoto = null;   // { foto: "data:image/jpeg;base64,...", fecha: ISOString }
+let ultimaVista = 0;     // timestamp (ms) de la última vez que alguien pidió ver la cámara desde el dashboard
 
 // ---------------- RUTAS ----------------
 
@@ -131,7 +140,8 @@ app.post('/api/datos', (req, res) => {
       fecha: new Date().toISOString(),
       sonido: estado.sonido,
       luz: estado.luz,
-      distancia: estado.distancia
+      distancia: estado.distancia,
+      foto: null // se completa cuando llegue una foto de la cámara mientras esta alarma esté activa
     });
     if (eventos.length > MAX_EVENTOS) eventos.pop();
   }
@@ -148,6 +158,38 @@ app.get('/api/datos', requireAuth, (req, res) => {
 // Ruta de salud, para confirmar que el servidor está vivo
 app.get('/api/ping', (req, res) => {
   res.json({ ok: true, mensaje: 'Servidor activo' });
+});
+
+// ---------------- CÁMARA ----------------
+
+// El teléfono manda una foto nueva acá.
+app.post('/api/camara/foto', requireAuth, (req, res) => {
+  const { foto } = req.body || {};
+  if (!foto || typeof foto !== 'string' || !foto.startsWith('data:image/')) {
+    return res.status(400).json({ ok: false, error: 'Falta la foto o el formato no es válido.' });
+  }
+
+  ultimaFoto = { foto, fecha: new Date().toISOString() };
+
+  // Si hay una alarma en curso y ese evento todavía no tiene foto, se la asignamos.
+  if (estado.alarma && eventos.length > 0 && !eventos[0].foto) {
+    eventos[0].foto = foto;
+  }
+
+  res.json({ ok: true });
+});
+
+// El dashboard pide la última foto acá (y de paso "avisa" que alguien está mirando).
+app.get('/api/camara/foto', requireAuth, (req, res) => {
+  ultimaVista = Date.now();
+  res.json(ultimaFoto || { foto: null, fecha: null });
+});
+
+// El teléfono consulta acá si vale la pena seguir mandando fotos:
+// hay alguien mirando el dashboard ahora mismo, o hay una alarma activa.
+app.get('/api/camara/activo', requireAuth, (req, res) => {
+  const alguienMirando = (Date.now() - ultimaVista) < 5000;
+  res.json({ activo: alguienMirando || estado.alarma });
 });
 
 app.listen(PORT, () => {
