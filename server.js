@@ -99,6 +99,14 @@ app.get('/camara-emisor.html', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'camara-emisor.html'));
 });
 
+// Los archivos de vendor/ (librerías + modelos de IA) nunca cambian una vez
+// publicados, así que le decimos al navegador que los guarde en caché mucho
+// tiempo — evita volver a descargar ~7MB cada vez que se abre la pestaña Cámara.
+app.use('/vendor', express.static(path.join(__dirname, 'public', 'vendor'), {
+  maxAge: '30d',
+  immutable: true
+}));
+
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ---------------- ESTADO EN MEMORIA ----------------

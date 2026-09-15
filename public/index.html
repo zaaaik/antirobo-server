@@ -996,6 +996,13 @@ async function actualizar() {
 
 actualizar();
 setInterval(actualizar, 2000);
+
+// Precarga el reconocimiento facial en segundo plano apenas entrás al
+// dashboard (no espera a que toques la pestaña Cámara), para que cuando la
+// abras ya esté todo listo en vez de tener que esperar la descarga ahí.
+setTimeout(() => {
+  cargarFaceApi().then(() => cargarDetectorPersonas());
+}, 1500);
 </script>
 
 </body>
