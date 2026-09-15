@@ -257,7 +257,7 @@
       <div class="topbar-label">Dispositivo</div>
       <div class="topbar-name">Nodo 01</div>
     </div>
-    <div class="gear">⚙️</div>
+    <div class="gear" id="btnSalir" title="Cerrar sesión">🚪</div>
   </div>
 
   <!-- ==================== TAB: INICIO ==================== -->
@@ -410,6 +410,11 @@ document.getElementById('btnCamara').addEventListener('click', () => {
   alert('La vista de cámara estará disponible próximamente.');
 });
 
+document.getElementById('btnSalir').addEventListener('click', async () => {
+  try { await fetch('/api/logout', { method: 'POST' }); } catch (e) {}
+  window.location.href = '/login.html';
+});
+
 /* ---------------- Navegación inferior ---------------- */
 function mostrarTab(id) {
   document.querySelectorAll('.tab').forEach(t => t.hidden = (t.id !== id));
@@ -440,6 +445,10 @@ setInterval(tickTiempos, 1000);
 async function actualizar() {
   try {
     const r = await fetch('/api/datos');
+    if (r.status === 401) {
+      window.location.href = '/login.html';
+      return;
+    }
     const d = await r.json();
 
     ultimaActDate = d.ultimaActualizacion ? new Date(d.ultimaActualizacion) : new Date();
