@@ -82,7 +82,7 @@ const punto = document.getElementById('punto');
 const textoEstado = document.getElementById('textoEstado');
 const errorDiv = document.getElementById('error');
 
-const INTERVALO_CHEQUEO = 700;  // cada cuánto pregunta si "vale la pena" transmitir
+const INTERVALO_CHEQUEO = 200;  // pausa entre una foto y la siguiente mientras transmite
 const ANCHO_FOTO = 400;         // resolución reducida para que las fotos sean livianas y rápidas
 
 async function iniciarCamara() {
@@ -131,18 +131,29 @@ async function enviarFoto() {
   }
 }
 
+// El "¿alguien está mirando?" se consulta solo cada 2s (es barato, pero no
+// hace falta preguntarlo en cada foto); mientras tanto se usa el último
+// resultado guardado en cache para no perder tiempo entre foto y foto.
+let activoCache = false;
+let ultimoChequeo = 0;
+const INTERVALO_CHEQUEO_ACTIVO = 2000;
+
 async function cicloEnvio() {
   try {
-    const r = await fetch('/api/camara/activo');
-    if (r.status === 401) {
-      textoEstado.textContent = 'Sesión vencida — volvé a entrar';
-      punto.className = 'punto';
-      window.location.href = '/login.html';
-      return;
+    if (Date.now() - ultimoChequeo > INTERVALO_CHEQUEO_ACTIVO) {
+      const r = await fetch('/api/camara/activo');
+      if (r.status === 401) {
+        textoEstado.textContent = 'Sesión vencida — volvé a entrar';
+        punto.className = 'punto';
+        window.location.href = '/login.html';
+        return;
+      }
+      const d = await r.json();
+      activoCache = d.activo;
+      ultimoChequeo = Date.now();
     }
-    const d = await r.json();
 
-    if (d.activo) {
+    if (activoCache) {
       textoEstado.textContent = 'Transmitiendo...';
       punto.className = 'punto transmitiendo';
       await enviarFoto();

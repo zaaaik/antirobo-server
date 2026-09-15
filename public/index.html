@@ -429,7 +429,7 @@ const modalCamara = document.getElementById('modalCamara');
 const imgCamara = document.getElementById('imgCamara');
 const camaraSinFoto = document.getElementById('camaraSinFoto');
 const camaraFecha = document.getElementById('camaraFecha');
-let intervaloCamara = null;
+let camaraActiva = false;
 
 async function actualizarFotoCamara() {
   try {
@@ -455,15 +455,21 @@ async function actualizarFotoCamara() {
   }
 }
 
+async function cicloCamara() {
+  if (!camaraActiva) return;
+  await actualizarFotoCamara();
+  if (camaraActiva) setTimeout(cicloCamara, 200);
+}
+
 function abrirCamara() {
   modalCamara.style.display = 'flex';
-  actualizarFotoCamara();
-  intervaloCamara = setInterval(actualizarFotoCamara, 700);
+  camaraActiva = true;
+  cicloCamara();
 }
 
 function cerrarCamara() {
   modalCamara.style.display = 'none';
-  if (intervaloCamara) { clearInterval(intervaloCamara); intervaloCamara = null; }
+  camaraActiva = false;
 }
 
 document.getElementById('btnVerCamaraSiempre').addEventListener('click', abrirCamara);
