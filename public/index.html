@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema Antirobo</title>
+<style>
+body{font-family:sans-serif;max-width:420px;margin:20px auto;padding:0 16px;background:#f5f5f5}
+.tarjeta{border:1px solid #ddd;border-radius:12px;padding:20px;background:#fafafa}
+h2{text-align:center;margin-top:0}
+#estado{text-align:center;padding:12px;border-radius:8px;color:white;font-weight:bold;margin-bottom:16px;background:#2ecc71}
+#estado.alarma{background:#e74c3c}
+.fila{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee}
+.pie{text-align:center;margin-top:16px;font-size:12px;color:#888}
+#btnSonido{width:100%;padding:10px;margin-top:10px;background:#f39c12;color:white;border:none;border-radius:8px;font-size:14px}
+#historial{margin-top:16px;font-size:13px}
+#historial div{padding:4px 0;border-bottom:1px solid #eee}
+</style>
+</head>
+<body>
+
+<div class="tarjeta">
+  <h2>🛡 Sistema Antirobo</h2>
+  <div id="estado">Cargando...</div>
+  <div class="fila"><span>Sonido</span><b id="sonido">-</b></div>
+  <div class="fila"><span>Luz</span><b id="luz">-</b></div>
+  <div class="fila"><span>Distancia</span><b id="distancia">-</b></div>
+  <div class="fila"><span>Confirmaciones</span><b id="conf">-</b></div>
+  <div class="fila"><span>Alertas totales</span><b id="alertas">-</b></div>
+  <div class="pie" id="pie">-</div>
+  <button id="btnSonido" onclick="activarSonido()">🔊 Activar sonido de alerta</button>
+  <div id="historial"></div>
+</div>
+
+<script>
+let alarmaAnterior = false;
+let ctxGlobal = null;
+
+function activarSonido() {
+  ctxGlobal = new (window.AudioContext || window.webkitAudioContext)();
+  document.getElementById('btnSonido').textContent = 'Sonido activado';
+  document.getElementById('btnSonido').disabled = true;
+}
+
+function pitar() {
+  if (!ctxGlobal) return;
+  try {
+    const osc = ctxGlobal.createOscillator();
+    const gain = ctxGlobal.createGain();
+    osc.connect(gain);
+    gain.connect(ctxGlobal.destination);
+    osc.type = 'square';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.15, ctxGlobal.currentTime);
+    osc.start();
+    osc.stop(ctxGlobal.currentTime + 0.6);
+  } catch (e) {}
+}
+
+async function actualizar() {
+  try {
+    const r = await fetch('/api/datos');
+    const d = await r.json();
+
+    document.getElementById('sonido').textContent = d.sonido;
+    document.getElementById('luz').textContent = d.luz;
+    document.getElementById('distancia').textContent = d.distancia + ' cm';
+    document.getElementById('conf').textContent = d.confirmadas + '/' + d.objetivo;
+    document.getElementById('alertas').textContent = d.alertas;
+
+    const e = document.getElementById('estado');
+    if (d.alarma) {
+      e.textContent = 'ALARMA';
+      e.classList.add('alarma');
+    } else {
+      e.textContent = 'VIGILANDO';
+      e.classList.remove('alarma');
+    }
+
+    if (d.alarma && !alarmaAnterior) pitar();
+    alarmaAnterior = d.alarma;
+
+    const ultima = d.ultimaActualizacion
+      ? new Date(d.ultimaActualizacion).toLocaleTimeString()
+      : '-';
+    document.getElementById('pie').textContent = 'Última actualización: ' + ultima;
+
+    const hist = document.getElementById('historial');
+    if (d.eventos && d.eventos.length > 0) {
+      hist.innerHTML = '<b>Historial:</b>' + d.eventos.slice(0, 5).map(ev =>
+        `<div>${new Date(ev.fecha).toLocaleString()} — sonido:${ev.sonido} luz:${ev.luz}</div>`
+      ).join('');
+    }
+  } catch (err) {
+    document.getElementById('estado').textContent = 'Sin conexion al servidor';
+  }
+}
+
+actualizar();
+setInterval(actualizar, 2000);
+</script>
+
+</body>
+</html>
