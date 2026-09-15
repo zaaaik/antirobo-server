@@ -45,10 +45,14 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 // endpoint ya no es válido (el usuario desinstaló, borró permisos, etc.),
 // lo borramos de la base para no seguir intentando en vano.
 async function notificarATodos(titulo, cuerpo) {
-  if (!process.env.VAPID_PUBLIC_KEY) return;
+  if (!process.env.VAPID_PUBLIC_KEY) {
+    return { enviados: 0, errores: ['El servidor no tiene configuradas las claves VAPID.'] };
+  }
 
   const suscripciones = await Suscripcion.find();
   const payload = JSON.stringify({ title: titulo, body: cuerpo, url: '/' });
+  let enviados = 0;
+  const errores = [];
 
   await Promise.all(suscripciones.map(async (s) => {
     try {
@@ -56,14 +60,19 @@ async function notificarATodos(titulo, cuerpo) {
         { endpoint: s.endpoint, keys: s.keys },
         payload
       );
+      enviados++;
     } catch (err) {
       if (err.statusCode === 404 || err.statusCode === 410) {
         await Suscripcion.deleteOne({ _id: s._id });
+        errores.push('Una suscripción vencida se eliminó (código ' + err.statusCode + ').');
       } else {
-        console.error('Error enviando notificación push:', err.message);
+        console.error('Error enviando notificación push:', err.statusCode, err.message);
+        errores.push('Código ' + err.statusCode + ': ' + err.message);
       }
     }
   }));
+
+  return { totalSuscripciones: suscripciones.length, enviados, errores };
 }
 
 // ---------------- BASE DE DATOS ----------------
@@ -250,8 +259,8 @@ app.post('/api/notificaciones/desuscribir', requireAuth, async (req, res) => {
 
 // Botón "Probar" desde el dashboard, para confirmar que las notificaciones llegan.
 app.post('/api/notificaciones/probar', requireAuth, async (req, res) => {
-  await notificarATodos('🔔 Notificación de prueba', 'Si ves esto, las notificaciones están funcionando.');
-  res.json({ ok: true });
+  const resultado = await notificarATodos('🔔 Notificación de prueba', 'Si ves esto, las notificaciones están funcionando.');
+  res.json({ ok: true, ...resultado });
 });
 
 // ---------------- CÁMARA: foto de respaldo para el historial de alarmas ----------------

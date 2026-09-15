@@ -1009,11 +1009,16 @@ btnActivarNotif.addEventListener('click', async () => {
       applicationServerKey: base64UrlABuffer(clave)
     });
 
-    await fetch('/api/notificaciones/suscribir', {
+    const rGuardar = await fetch('/api/notificaciones/suscribir', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(nuevaSuscripcion.toJSON())
     });
+    if (!rGuardar.ok) {
+      const err = await rGuardar.json().catch(() => ({}));
+      notifEstado.textContent = 'El navegador se suscribió pero el servidor no pudo guardarlo: ' + (err.error || rGuardar.status);
+      return;
+    }
 
     await actualizarEstadoNotif();
   } catch (e) {
@@ -1025,8 +1030,18 @@ btnProbarNotif.addEventListener('click', async () => {
   btnProbarNotif.disabled = true;
   btnProbarNotif.textContent = 'Enviando...';
   try {
-    await fetch('/api/notificaciones/probar', { method: 'POST' });
-  } catch (e) {}
+    const r = await fetch('/api/notificaciones/probar', { method: 'POST' });
+    const d = await r.json();
+    if (d.totalSuscripciones === 0) {
+      notifEstado.textContent = 'El servidor no tiene ninguna suscripción guardada. Desactivá y volvé a activar las notificaciones.';
+    } else if (d.enviados > 0) {
+      notifEstado.textContent = 'Prueba enviada a ' + d.enviados + ' de ' + d.totalSuscripciones + ' dispositivo(s).';
+    } else {
+      notifEstado.textContent = 'Falló el envío: ' + (d.errores && d.errores[0] ? d.errores[0] : 'error desconocido');
+    }
+  } catch (e) {
+    notifEstado.textContent = 'No se pudo conectar con el servidor.';
+  }
   btnProbarNotif.textContent = 'Enviar notificación de prueba';
   btnProbarNotif.disabled = false;
 });
