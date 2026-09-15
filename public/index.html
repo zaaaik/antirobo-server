@@ -435,6 +435,10 @@ async function actualizarFotoCamara() {
   try {
     const r = await fetch('/api/camara/foto');
     if (r.status === 401) { window.location.href = '/login.html'; return; }
+    if (!r.ok) {
+      camaraFecha.textContent = 'El servidor respondió con error ' + r.status + '. Reintentando...';
+      return;
+    }
     const d = await r.json();
     if (d.foto) {
       imgCamara.src = d.foto;
@@ -444,9 +448,11 @@ async function actualizarFotoCamara() {
     } else {
       imgCamara.hidden = true;
       camaraSinFoto.hidden = false;
-      camaraFecha.textContent = 'Esperá a que el teléfono-cámara empiece a transmitir...';
+      camaraFecha.textContent = 'Esperá a que el teléfono-cámara empiece a transmitir... (consultado ' + new Date().toLocaleTimeString() + ')';
     }
-  } catch (e) {}
+  } catch (e) {
+    camaraFecha.textContent = 'Error de conexión: ' + e.message;
+  }
 }
 
 function abrirCamara() {
