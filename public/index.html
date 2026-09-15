@@ -292,6 +292,32 @@
   .punto-vivo{width:8px;height:8px;border-radius:50%;background:var(--muted)}
   .punto-vivo.on{background:var(--rojo)}
 
+  .persona-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:var(--card);
+    border:1.5px solid var(--card-border);
+    border-radius:var(--r-md);
+    padding:12px 13px;
+    margin-bottom:9px;
+    font-size:14px;
+    font-weight:600;
+  }
+  .persona-nombre{display:flex;align-items:center;gap:9px}
+  .persona-nombre .icon{color:var(--muted);font-size:16px}
+  .btn-eliminar-persona{
+    background:var(--rojo-bg);
+    color:var(--rojo);
+    border:none;
+    border-radius:9px;
+    padding:7px 11px;
+    font-size:12px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .btn-eliminar-persona:active{opacity:.75}
+
   /* ---------- bottom nav ---------- */
   .bottomnav{
     position:fixed;
@@ -346,6 +372,8 @@
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
   <symbol id="i-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></symbol>
   <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
 </svg>
 
 <div class="app">
@@ -447,6 +475,9 @@
 
     <button class="btn" id="btnAgregarPersona" style="margin-top:12px" disabled>+ Agregar persona conocida</button>
     <div class="pie" id="personasInfo">Cargando reconocimiento facial...</div>
+
+    <div class="section-label" style="margin-top:20px">Personas conocidas</div>
+    <div id="listaPersonas"></div>
   </div>
 
 </div>
@@ -660,16 +691,46 @@ async function cargarDetectorPersonas() {
   }
 }
 
+const listaPersonas = document.getElementById('listaPersonas');
+
 async function cargarPersonasConocidas() {
   try {
     const r = await fetch('/api/personas');
     const lista = await r.json();
     personasConocidas = lista.map(p => ({ nombre: p.nombre, descriptor: new Float32Array(p.descriptor) }));
-    personasInfo.textContent = personasConocidas.length > 0
-      ? personasConocidas.length + ' persona(s) conocida(s) registrada(s).'
+
+    personasInfo.textContent = lista.length > 0
+      ? lista.length + ' persona(s) conocida(s) registrada(s).'
       : 'Sin personas conocidas registradas todavía.';
+
+    listaPersonas.innerHTML = lista.length > 0
+      ? lista.map(p => `
+          <div class="persona-item">
+            <div class="persona-nombre"><svg class="icon"><use href="#i-user"/></svg>${p.nombre}</div>
+            <button class="btn-eliminar-persona" data-id="${p._id}"><svg class="icon"><use href="#i-trash"/></svg> Eliminar</button>
+          </div>
+        `).join('')
+      : '<div class="pie">Todavía no registraste a nadie.</div>';
+
+    listaPersonas.querySelectorAll('.btn-eliminar-persona').forEach(btn => {
+      btn.addEventListener('click', () => eliminarPersona(btn.dataset.id, btn));
+    });
   } catch (e) {
     personasInfo.textContent = 'No se pudo cargar la lista de personas conocidas.';
+  }
+}
+
+async function eliminarPersona(id, btn) {
+  const nombre = btn.closest('.persona-item').querySelector('.persona-nombre').textContent.trim();
+  if (!confirm('¿Eliminar a "' + nombre + '" de las personas conocidas?')) return;
+
+  btn.disabled = true;
+  try {
+    await fetch('/api/personas/' + id, { method: 'DELETE' });
+    await cargarPersonasConocidas();
+  } catch (e) {
+    alert('No se pudo eliminar. Probá de nuevo.');
+    btn.disabled = false;
   }
 }
 
