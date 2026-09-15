@@ -82,8 +82,8 @@ const punto = document.getElementById('punto');
 const textoEstado = document.getElementById('textoEstado');
 const errorDiv = document.getElementById('error');
 
-const INTERVALO_CHEQUEO = 2500; // cada cuánto pregunta si "vale la pena" transmitir
-const ANCHO_FOTO = 480;         // resolución reducida para que las fotos sean livianas
+const INTERVALO_CHEQUEO = 700;  // cada cuánto pregunta si "vale la pena" transmitir
+const ANCHO_FOTO = 400;         // resolución reducida para que las fotos sean livianas y rápidas
 
 async function iniciarCamara() {
   try {
@@ -115,7 +115,7 @@ function capturarFrame() {
   canvas.width = w;
   canvas.height = h;
   canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-  return canvas.toDataURL('image/jpeg', 0.5);
+  return canvas.toDataURL('image/jpeg', 0.4);
 }
 
 async function enviarFoto() {

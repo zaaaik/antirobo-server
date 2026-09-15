@@ -170,7 +170,6 @@ app.post('/api/camara/foto', requireAuth, (req, res) => {
   }
 
   ultimaFoto = { foto, fecha: new Date().toISOString() };
-  console.log(`Foto de cámara recibida (${foto.length} caracteres).`);
 
   // Si hay una alarma en curso y ese evento todavía no tiene foto, se la asignamos.
   if (estado.alarma && eventos.length > 0 && !eventos[0].foto) {
@@ -183,14 +182,13 @@ app.post('/api/camara/foto', requireAuth, (req, res) => {
 // El dashboard pide la última foto acá (y de paso "avisa" que alguien está mirando).
 app.get('/api/camara/foto', requireAuth, (req, res) => {
   ultimaVista = Date.now();
-  console.log('Alguien pidió ver la cámara (dashboard).');
   res.json(ultimaFoto || { foto: null, fecha: null });
 });
 
 // El teléfono consulta acá si vale la pena seguir mandando fotos:
 // hay alguien mirando el dashboard ahora mismo, o hay una alarma activa.
 app.get('/api/camara/activo', requireAuth, (req, res) => {
-  const alguienMirando = (Date.now() - ultimaVista) < 5000;
+  const alguienMirando = (Date.now() - ultimaVista) < 2000;
   res.json({ activo: alguienMirando || estado.alarma });
 });
 
