@@ -19,10 +19,10 @@
     --rojo-icon:#f8cfcf;
     --azul:#2f6fed;
     --azul-bg:#eaf1ff;
-    --azul-icon:#d3e2ff;
     --naranja:#e8830f;
     --naranja-bg:#fdf1e2;
-    --naranja-icon:#fbe1bb;
+    --amarillo:#c98a06;
+    --amarillo-bg:#fdf6de;
     --track:#eef0f3;
     --r-lg:22px;
     --r-md:16px;
@@ -38,6 +38,17 @@
     display:flex;
     justify-content:center;
     -webkit-font-smoothing:antialiased;
+  }
+  .icon{
+    width:1em;height:1em;
+    display:inline-block;
+    vertical-align:-0.15em;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:2;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    flex-shrink:0;
   }
   .app{
     width:100%;
@@ -64,7 +75,7 @@
     border:1px solid var(--card-border);
     box-shadow:var(--shadow);
     display:flex;align-items:center;justify-content:center;
-    font-size:16px;
+    font-size:17px;
     color:var(--muted);
     cursor:pointer;
     transition:transform .15s, background .15s;
@@ -89,8 +100,9 @@
     display:flex;align-items:center;justify-content:center;
     margin:0 auto 12px;
     font-size:25px;
+    color:var(--verde);
   }
-  .status-card.alarma .status-icon{background:var(--rojo-icon)}
+  .status-card.alarma .status-icon{background:var(--rojo-icon); color:var(--rojo)}
   .status-title{font-size:22px;font-weight:800;color:var(--verde);letter-spacing:-.2px}
   .status-card.alarma .status-title{color:var(--rojo)}
   .status-sub{font-size:13px;color:var(--muted);margin-top:6px}
@@ -109,7 +121,7 @@
     box-shadow:var(--shadow);
     margin-bottom:20px;
   }
-  .location-row .pin{font-size:15px}
+  .location-row .icon{font-size:16px;color:var(--muted)}
 
   /* ---------- sensors ---------- */
   .section-label{
@@ -148,9 +160,9 @@
     display:flex;align-items:center;justify-content:center;
     flex-shrink:0;
   }
-  .sensor-icon.azul{background:var(--azul-bg)}
-  .sensor-icon.naranja{background:var(--naranja-bg)}
-  .sensor-icon.amarillo{background:#fdf6de}
+  .sensor-icon.azul{background:var(--azul-bg); color:var(--azul)}
+  .sensor-icon.naranja{background:var(--naranja-bg); color:var(--naranja)}
+  .sensor-icon.amarillo{background:var(--amarillo-bg); color:var(--amarillo)}
   .sensor-badge{
     font-size:12px;
     font-weight:700;
@@ -191,6 +203,8 @@
     background:#fff6f6;
   }
   .detail-name{display:flex;align-items:center;gap:9px}
+  .detail-name .icon{color:var(--muted); font-size:15px}
+  .detail-item.activo .detail-name .icon{color:var(--rojo)}
   .detail-value{
     font-size:12px;
     font-weight:700;
@@ -244,7 +258,8 @@
     margin-bottom:11px;
     border-left:3px solid var(--rojo);
   }
-  .historial-item .h-titulo{font-weight:700;font-size:14px;color:var(--rojo);display:flex;align-items:center;gap:6px}
+  .historial-item .h-titulo{font-weight:700;font-size:14px;color:var(--rojo);display:flex;align-items:center;gap:7px}
+  .historial-item .h-titulo .icon{font-size:15px}
   .historial-item .h-detalle{color:var(--muted);font-size:12px;margin-top:4px}
   .historial-item img{width:100%;border-radius:12px;margin-top:10px;display:block}
 
@@ -300,7 +315,7 @@
     display:flex;
     flex-direction:column;
     align-items:center;
-    gap:3px;
+    gap:4px;
     font-size:10.5px;
     font-weight:600;
     color:var(--muted);
@@ -310,12 +325,27 @@
     transition:background .15s, color .15s;
   }
   .nav-btn span{font-size:10.5px}
-  .nav-btn .ico{font-size:19px}
+  .nav-btn .icon{font-size:19px}
   .nav-btn.active{color:var(--text); background:var(--track)}
   .nav-btn:disabled{opacity:.35;cursor:default}
 </style>
 </head>
 <body>
+
+<!-- Set de íconos (no se ve nada acá, solo definiciones reusadas con <use>) -->
+<svg style="position:absolute;width:0;height:0" aria-hidden="true">
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 21s7-3.5 7-9V6l-7-3-7 3v6c0 5.5 7 9 7 9Z"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h16.9a2 2 0 0 0 1.7-3L13.6 3.9a2 2 0 0 0-3.3 0Z"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M21 10c0 6.5-9 12.5-9 12.5S3 16.5 3 10a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-volume" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19 5a12 12 0 0 1 0 14M15.5 8.5a7 7 0 0 1 0 7"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.7.6 1 1.4 1 2.3h6c0-.9.3-1.7 1-2.3A7 7 0 0 0 12 2Z"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 9.5 9-6.5 9 6.5"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+</svg>
 
 <div class="app">
 
@@ -324,20 +354,20 @@
       <div class="topbar-label">Dispositivo</div>
       <div class="topbar-name">Nodo 01</div>
     </div>
-    <div class="gear" id="btnSalir" title="Cerrar sesión">🚪</div>
+    <div class="gear" id="btnSalir" title="Cerrar sesión"><svg class="icon"><use href="#i-logout"/></svg></div>
   </div>
 
   <!-- ==================== TAB: INICIO ==================== -->
   <div class="tab" id="tabInicio">
 
     <div class="status-card" id="statusCard">
-      <div class="status-icon" id="statusIcon">🛡️</div>
+      <div class="status-icon" id="statusIcon"><svg class="icon"><use href="#i-shield"/></svg></div>
       <div class="status-title" id="statusTitle">Cargando...</div>
       <div class="status-sub" id="statusSub">-</div>
     </div>
 
     <div class="location-row">
-      <span class="pin">📍</span>
+      <svg class="icon"><use href="#i-pin"/></svg>
       <span id="locationText">Bodega trasera — puerta norte</span>
     </div>
 
@@ -345,7 +375,7 @@
 
     <div class="sensor-card">
       <div class="sensor-row">
-        <div class="sensor-name"><span class="sensor-icon azul">🔊</span>Sonido</div>
+        <div class="sensor-name"><span class="sensor-icon azul"><svg class="icon"><use href="#i-volume"/></svg></span>Sonido</div>
         <div class="sensor-badge" id="sonidoBadge">- dB</div>
       </div>
       <div class="bar-track"><div class="bar-fill" id="barraSonido"></div></div>
@@ -353,7 +383,7 @@
 
     <div class="sensor-card">
       <div class="sensor-row">
-        <div class="sensor-name"><span class="sensor-icon naranja">🏃</span>Movimiento</div>
+        <div class="sensor-name"><span class="sensor-icon naranja"><svg class="icon"><use href="#i-activity"/></svg></span>Movimiento</div>
         <div class="sensor-badge" id="movBadge">Sin detección</div>
       </div>
       <div class="bar-track"><div class="bar-fill" id="barraMov"></div></div>
@@ -361,7 +391,7 @@
 
     <div class="sensor-card">
       <div class="sensor-row">
-        <div class="sensor-name"><span class="sensor-icon amarillo">💡</span>Luz</div>
+        <div class="sensor-name"><span class="sensor-icon amarillo"><svg class="icon"><use href="#i-bulb"/></svg></span>Luz</div>
         <div class="sensor-badge" id="luzBadge">- lux</div>
       </div>
       <div class="bar-track"><div class="bar-fill" id="barraLuz"></div></div>
@@ -372,15 +402,15 @@
       <div class="section-label">Qué se activó</div>
 
       <div class="detail-item" id="detSonido">
-        <div class="detail-name">🔊 Sonido</div>
+        <div class="detail-name"><svg class="icon"><use href="#i-volume"/></svg>Sonido</div>
         <div class="detail-value" id="detSonidoValor">-</div>
       </div>
       <div class="detail-item" id="detMov">
-        <div class="detail-name">🏃 Movimiento</div>
+        <div class="detail-name"><svg class="icon"><use href="#i-activity"/></svg>Movimiento</div>
         <div class="detail-value" id="detMovValor">-</div>
       </div>
       <div class="detail-item" id="detLuz">
-        <div class="detail-name">💡 Luz</div>
+        <div class="detail-name"><svg class="icon"><use href="#i-bulb"/></svg>Luz</div>
         <div class="detail-value" id="detLuzValor">-</div>
       </div>
 
@@ -418,10 +448,10 @@
 
 <div class="bottomnav">
   <div class="bottomnav-inner">
-    <button class="nav-btn active" id="navInicio" data-tab="tabInicio"><span class="ico">🏠</span><span>Inicio</span></button>
-    <button class="nav-btn" id="navHistorial" data-tab="tabHistorial"><span class="ico">🕐</span><span>Historial</span></button>
-    <button class="nav-btn" id="navCamara" data-tab="tabCamara"><span class="ico">📷</span><span>Cámara</span></button>
-    <button class="nav-btn" id="navNotif" disabled><span class="ico">🔔</span><span>Alertas</span></button>
+    <button class="nav-btn active" id="navInicio" data-tab="tabInicio"><svg class="icon"><use href="#i-home"/></svg><span>Inicio</span></button>
+    <button class="nav-btn" id="navHistorial" data-tab="tabHistorial"><svg class="icon"><use href="#i-clock"/></svg><span>Historial</span></button>
+    <button class="nav-btn" id="navCamara" data-tab="tabCamara"><svg class="icon"><use href="#i-camera"/></svg><span>Cámara</span></button>
+    <button class="nav-btn" id="navNotif" disabled><svg class="icon"><use href="#i-bell"/></svg><span>Alertas</span></button>
   </div>
 </div>
 
@@ -664,7 +694,7 @@ async function actualizar() {
         iniciarBeepRepetido();
       }
       card.classList.add('alarma');
-      icon.textContent = '⚠️';
+      icon.innerHTML = '<svg class="icon"><use href="#i-alert"/></svg>';
       titulo.textContent = 'Alerta de intrusión';
       alertDetail.hidden = false;
 
@@ -681,7 +711,7 @@ async function actualizar() {
 
     } else {
       card.classList.remove('alarma');
-      icon.textContent = '🛡️';
+      icon.innerHTML = '<svg class="icon"><use href="#i-shield"/></svg>';
       titulo.textContent = 'Vigilando';
       alertDetail.hidden = true;
       alarmaInicio = null;
@@ -697,7 +727,7 @@ async function actualizar() {
     if (d.eventos && d.eventos.length > 0) {
       hist.innerHTML = d.eventos.slice(0, 10).map(ev => `
         <div class="historial-item">
-          <div class="h-titulo">🚨 Intrusión detectada</div>
+          <div class="h-titulo"><svg class="icon"><use href="#i-alert"/></svg>Intrusión detectada</div>
           <div class="h-detalle">${new Date(ev.fecha).toLocaleString()} — sonido: ${ev.sonido} dB · luz: ${ev.luz} lux</div>
           ${ev.foto ? `<img src="${ev.foto}">` : ''}
         </div>
