@@ -340,7 +340,7 @@
 </div>
 
 <!-- ==================== MODAL: CÁMARA ==================== -->
-<div id="modalCamara" hidden style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px">
+<div id="modalCamara" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:50;align-items:center;justify-content:center;padding:20px">
   <div style="width:100%;max-width:400px;background:var(--card);border-radius:20px;padding:18px;text-align:center">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <span style="font-weight:700;font-size:15px">📷 Cámara</span>
@@ -456,13 +456,13 @@ async function actualizarFotoCamara() {
 }
 
 function abrirCamara() {
-  modalCamara.hidden = false;
+  modalCamara.style.display = 'flex';
   actualizarFotoCamara();
   intervaloCamara = setInterval(actualizarFotoCamara, 1500);
 }
 
 function cerrarCamara() {
-  modalCamara.hidden = true;
+  modalCamara.style.display = 'none';
   if (intervaloCamara) { clearInterval(intervaloCamara); intervaloCamara = null; }
 }
 
