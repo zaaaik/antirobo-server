@@ -351,11 +351,13 @@ const SONIDO_MAX = 100;      // escala de la barra de sonido
 const SONIDO_UMBRAL = 60;    // a partir de aquí se considera "activado"
 const LUZ_MAX = 100;         // escala de la barra de luz
 
-/* NOTA: todavía no hay un sensor de movimiento propio (irá con la cámara
-   a futuro). Por ahora "Movimiento" se deriva del estado de alarma:
-   se muestra "Detectado" mientras la alarma esté activa. Cuando se
-   integre la cámara/sensor real, reemplazar `movimientoDetectado` por
-   el valor que llegue del backend. */
+/* "Movimiento" se calcula con el HC-SR04 (sensor de distancia): si algo
+   corta el haz y queda más cerca que DISTANCIA_UMBRAL, se considera
+   "Detectado". DISTANCIA_RANGO solo se usa para dibujar la barra
+   (más cerca = barra más llena). Ajustá estos valores según dónde
+   quede montado el sensor. */
+const DISTANCIA_UMBRAL = 50; // cm — por debajo de esto, se marca "Detectado"
+const DISTANCIA_RANGO = 200; // cm — rango visual de la barra
 
 let alarmaAnterior = false;
 let alarmaInicio = null;     // Date en que empezó la alarma actual
@@ -440,8 +442,10 @@ async function actualizar() {
 
     ultimaActDate = d.ultimaActualizacion ? new Date(d.ultimaActualizacion) : new Date();
 
-    // Placeholder hasta tener sensor de movimiento / cámara real:
-    const movimientoDetectado = !!d.alarma;
+    // Movimiento real, a partir de la distancia del HC-SR04.
+    // distancia <= 0 suele ser una lectura inválida del sensor (timeout),
+    // no lo tratamos como "algo muy cerca".
+    const movimientoDetectado = d.distancia > 0 && d.distancia < DISTANCIA_UMBRAL;
 
     // --- Badges y barras ---
     document.getElementById('sonidoBadge').textContent = d.sonido + ' dB';
@@ -450,7 +454,7 @@ async function actualizar() {
 
     const pctSonido = Math.min(100, (d.sonido / SONIDO_MAX) * 100);
     const pctLuz = Math.min(100, (d.luz / LUZ_MAX) * 100);
-    const pctMov = movimientoDetectado ? 100 : 5;
+    const pctMov = d.distancia > 0 ? Math.min(100, Math.max(0, 100 - (d.distancia / DISTANCIA_RANGO) * 100)) : 0;
 
     const sonidoActivo = d.sonido > SONIDO_UMBRAL;
 
@@ -486,7 +490,7 @@ async function actualizar() {
 
       // Detalle de qué se activó
       document.getElementById('detSonidoValor').textContent = d.sonido + ' dB · umbral ' + SONIDO_UMBRAL;
-      document.getElementById('detMovValor').textContent = movimientoDetectado ? 'Detectado' : 'Sin detección';
+      document.getElementById('detMovValor').textContent = d.distancia + ' cm · umbral ' + DISTANCIA_UMBRAL;
       document.getElementById('detLuzValor').textContent = d.luz + ' lux · normal';
 
       document.getElementById('detSonido').classList.toggle('activo', sonidoActivo);
