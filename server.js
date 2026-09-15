@@ -12,6 +12,7 @@ const jwt = require('jsonwebtoken');
 const { Server } = require('socket.io');
 
 const User = require('./models/User');
+const Persona = require('./models/Persona');
 const { crearToken, requireAuth, JWT_SECRET } = require('./middleware/auth');
 
 const app = express();
@@ -182,6 +183,38 @@ app.post('/api/camara/foto', requireAuth, (req, res) => {
     eventos[0].foto = foto;
   }
 
+  res.json({ ok: true });
+});
+
+// ---------------- RECONOCIMIENTO FACIAL: personas conocidas ----------------
+// El reconocimiento en sí corre en el navegador de quien mira el dashboard
+// (con face-api.js, analizando el video que ya está recibiendo). Acá solo
+// se guardan/consultan las "huellas faciales" (128 números, no fotos) de
+// las personas que se registraron como conocidas.
+
+// Lista de personas conocidas (con su descriptor, para comparar en el navegador).
+app.get('/api/personas', requireAuth, async (req, res) => {
+  const personas = await Persona.find().select('nombre descriptor');
+  res.json(personas);
+});
+
+// Registra una persona nueva a partir de un descriptor ya calculado en el navegador.
+app.post('/api/personas', requireAuth, async (req, res) => {
+  const { nombre, descriptor } = req.body || {};
+  if (!nombre || typeof nombre !== 'string' || !nombre.trim()) {
+    return res.status(400).json({ ok: false, error: 'Falta el nombre.' });
+  }
+  if (!Array.isArray(descriptor) || descriptor.length !== 128) {
+    return res.status(400).json({ ok: false, error: 'El descriptor facial no es válido.' });
+  }
+
+  const persona = await Persona.create({ nombre: nombre.trim(), descriptor });
+  res.json({ ok: true, persona: { _id: persona._id, nombre: persona.nombre } });
+});
+
+// Borra una persona conocida.
+app.delete('/api/personas/:id', requireAuth, async (req, res) => {
+  await Persona.findByIdAndDelete(req.params.id);
   res.json({ ok: true });
 });
 
