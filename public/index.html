@@ -1181,8 +1181,12 @@ async function cargarDatos() {
 }
 
 /* El Arduino manda datos al servidor y el servidor los empuja por acá al
-   instante, en vez de que la página tenga que ir a pedirlos cada 2s. */
-const socketDatos = io();
+   instante, en vez de que la página tenga que ir a pedirlos cada 2s.
+   Namespace propio ("/datos") para no compartir conexión con el socket
+   de la cámara (io() por defecto, en conectarCamara() más arriba) — si
+   compartieran namespace, socket.io reutilizaría la misma conexión y
+   el 'connect' de la cámara nunca volvería a dispararse. */
+const socketDatos = io('/datos');
 socketDatos.on('connect', cargarDatos);
 socketDatos.on('datos', renderDatos);
 socketDatos.on('connect_error', () => {

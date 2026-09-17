@@ -217,7 +217,7 @@ app.post('/api/datos', (req, res) => {
   }
 
   console.log('Datos recibidos:', estado);
-  io.emit('datos', { ...estado, eventos });
+  nsDatos.emit('datos', { ...estado, eventos });
   res.json({ ok: true });
 });
 
@@ -322,7 +322,7 @@ app.delete('/api/personas/:id', requireAuth, async (req, res) => {
 
 // Solo se acepta la conexión de Socket.IO si trae una cookie de sesión válida
 // (la misma que usa el login normal).
-io.use((socket, next) => {
+function exigirCookieValida(socket, next) {
   try {
     const cookies = cookie.parse(socket.handshake.headers.cookie || '');
     const token = cookies.token;
@@ -332,7 +332,8 @@ io.use((socket, next) => {
   } catch (err) {
     next(new Error('No autenticado'));
   }
-});
+}
+io.use(exigirCookieValida);
 
 let socketCamara = null; // el socket del teléfono que hace de cámara (solo puede haber uno a la vez)
 
@@ -382,6 +383,14 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+// ---------------- PUSH DE DATOS AL DASHBOARD ----------------
+// Namespace aparte del de la señalización WebRTC de más arriba: si compartieran
+// el mismo namespace, el cliente de socket.io reutiliza la misma conexión para
+// los dos usos y el 'connect' del socket de la cámara nunca vuelve a dispararse
+// (ya estaría conectado desde antes), rompiendo el pedido de video en vivo.
+const nsDatos = io.of('/datos');
+nsDatos.use(exigirCookieValida);
 
 servidorHttp.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
