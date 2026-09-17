@@ -58,6 +58,7 @@ const uint16_t DURACION_ALARMA    = 5000;
 const uint16_t INTERVALO_LECTURA  = 50;
 const uint16_t INTERVALO_PANTALLA = 400;
 const uint16_t INTERVALO_ENVIO    = 1000;
+const uint16_t INTERVALO_RECONEXION_WIFI = 5000;
 
 // ---------------- ESTADO ----------------
 uint16_t luzBase = 0;
@@ -67,6 +68,7 @@ bool     alarmaActiva = false;
 uint32_t tiempoAlarma = 0;
 uint32_t tiempoPantalla = 0;
 uint32_t tiempoEnvio = 0;
+uint32_t tiempoReconexionWifi = 0;
 uint16_t alertasTotales = 0;
 
 uint16_t ultSonido = 0;
@@ -271,6 +273,11 @@ void setup() {
   lcd.init();
   lcd.backlight();
 
+  // El I2C del LCD se traba (visto en el log: ~16.8s por llamada). Esto
+  // pone un límite de tiempo a cada operación I2C: si no responde en 5ms,
+  // aborta y resetea el bus en vez de colgar el loop() entero por 17s.
+  Wire.setWireTimeout(5000, true);
+
   conectarWiFi();
 
   lcd.clear();
@@ -289,9 +296,25 @@ void setup() {
 
 // ================ LOOP ================
 void loop() {
+  uint32_t tLoopInicio = millis();
+
+  // El WiFi solo se conecta una vez en setup(); si el hotspot se corta un
+  // instante, sin esto el Arduino se queda esperando para siempre sin
+  // reintentar. Se reintenta cada INTERVALO_RECONEXION_WIFI, no en cada
+  // vuelta, para no trabar el loop con reintentos constantes.
+  if (WiFi.status() != WL_CONNECTED && millis() - tiempoReconexionWifi >= INTERVALO_RECONEXION_WIFI) {
+    tiempoReconexionWifi = millis();
+    Serial.println(F("WiFi caido, reintentando conexion..."));
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+  }
+  uint32_t tWifiCheck = millis();
+
   ultSonido    = analogRead(PIN_SONIDO);
   ultLuz       = analogRead(PIN_LUZ);
+  uint32_t tSensoresAnalog = millis();
+
   ultDistancia = medirDistancia();
+  uint32_t tDistancia = millis();
 
   bool hayRuido    = ultSonido > UMBRAL_SONIDO;
   bool sinLuz      = ultLuz > luzMaxima;
@@ -311,12 +334,31 @@ void loop() {
     detenerAlarma();
   }
 
-  actualizarPantalla(ultDistancia);
-
+  // El envío al servidor va ANTES que el LCD a propósito: el LCD por I2C
+  // se cuelga varios segundos (ver "pantalla=" en el log de diagnóstico),
+  // y no queremos que esa demora retrase también los datos que ve la web.
   if (millis() - tiempoEnvio >= INTERVALO_ENVIO) {
     tiempoEnvio = millis();
     enviarDatos();
   }
+  uint32_t tEnvioCheck = millis();
+
+  actualizarPantalla(ultDistancia);
+  uint32_t tPantalla = millis();
+
+  // Cronómetro por etapa: para encontrar en qué parte del loop se va el
+  // tiempo cuando la vuelta entera tarda mucho más de lo esperado.
+  Serial.print(F("[timing] wifi="));
+  Serial.print(tWifiCheck - tLoopInicio);
+  Serial.print(F("ms sensores="));
+  Serial.print(tSensoresAnalog - tWifiCheck);
+  Serial.print(F("ms distancia="));
+  Serial.print(tDistancia - tSensoresAnalog);
+  Serial.print(F("ms envio="));
+  Serial.print(tEnvioCheck - tDistancia);
+  Serial.print(F("ms pantalla="));
+  Serial.print(tPantalla - tEnvioCheck);
+  Serial.println(F("ms"));
 
   Serial.print(F("Sonido: "));
   Serial.print(ultSonido);
@@ -333,6 +375,13 @@ void loop() {
   Serial.print(confirmadas);
   Serial.print(F("/"));
   Serial.print(CONFIRMACIONES);
+  Serial.print(F(" | WiFi: "));
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print(WiFi.RSSI());
+    Serial.print(F("dBm"));
+  } else {
+    Serial.print(F("CAIDO"));
+  }
   Serial.println(alarmaActiva ? F(" | ALARMA") : F(""));
 
   delay(INTERVALO_LECTURA);
