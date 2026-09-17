@@ -1065,16 +1065,9 @@ function tickTiempos() {
 }
 setInterval(tickTiempos, 1000);
 
-/* ---------------- Fetch de datos ---------------- */
-async function actualizar() {
+/* ---------------- Datos: render ---------------- */
+function renderDatos(d) {
   try {
-    const r = await fetch('/api/datos');
-    if (r.status === 401) {
-      window.location.href = '/login.html';
-      return;
-    }
-    const d = await r.json();
-
     ultimaActDate = d.ultimaActualizacion ? new Date(d.ultimaActualizacion) : new Date();
 
     // Movimiento real, a partir de la distancia del HC-SR04.
@@ -1172,8 +1165,30 @@ async function actualizar() {
   }
 }
 
-actualizar();
-setInterval(actualizar, 2000);
+/* Carga inicial (y resincronización si el socket se reconecta) por fetch */
+async function cargarDatos() {
+  try {
+    const r = await fetch('/api/datos');
+    if (r.status === 401) {
+      window.location.href = '/login.html';
+      return;
+    }
+    renderDatos(await r.json());
+  } catch (err) {
+    document.getElementById('statusTitle').textContent = 'Sin conexión';
+    document.getElementById('statusSub').textContent = 'Revisa el servidor';
+  }
+}
+
+/* El Arduino manda datos al servidor y el servidor los empuja por acá al
+   instante, en vez de que la página tenga que ir a pedirlos cada 2s. */
+const socketDatos = io();
+socketDatos.on('connect', cargarDatos);
+socketDatos.on('datos', renderDatos);
+socketDatos.on('connect_error', () => {
+  document.getElementById('statusTitle').textContent = 'Sin conexión';
+  document.getElementById('statusSub').textContent = 'Sesión vencida — volvé a entrar.';
+});
 
 // Precarga el reconocimiento facial en segundo plano apenas entrás al
 // dashboard (no espera a que toques la pestaña Cámara), para que cuando la

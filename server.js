@@ -217,6 +217,7 @@ app.post('/api/datos', (req, res) => {
   }
 
   console.log('Datos recibidos:', estado);
+  io.emit('datos', { ...estado, eventos });
   res.json({ ok: true });
 });
 

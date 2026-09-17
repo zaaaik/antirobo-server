@@ -125,17 +125,25 @@ void conectarWiFi() {
 }
 
 // ================ ENVIAR DATOS A RENDER ================
+// Conexión persistente: reutilizamos el mismo cliente TLS entre envíos
+// (Connection: keep-alive) para no pagar un handshake TLS completo cada
+// vez, que en el UNO R4 es lo que hacía todo el proceso lentísimo.
+WiFiSSLClient clienteDatos;
+
 void enviarDatos() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println(F("Sin WiFi, no se envia."));
     return;
   }
 
-  WiFiSSLClient cliente;
+  // Descarta, sin bloquear, cualquier resto de la respuesta anterior.
+  while (clienteDatos.available()) clienteDatos.read();
 
-  if (!cliente.connect(SERVIDOR_HOST, SERVIDOR_PUERTO)) {
-    Serial.println(F("No se pudo conectar al servidor."));
-    return;
+  if (!clienteDatos.connected()) {
+    if (!clienteDatos.connect(SERVIDOR_HOST, SERVIDOR_PUERTO)) {
+      Serial.println(F("No se pudo conectar al servidor."));
+      return;
+    }
   }
 
   String json = "{";
@@ -150,25 +158,21 @@ void enviarDatos() {
   json += "\"segundos\":" + String(millis() / 1000);
   json += "}";
 
-  cliente.print(F("POST "));
-  cliente.print(SERVIDOR_RUTA);
-  cliente.println(F(" HTTP/1.1"));
-  cliente.print(F("Host: "));
-  cliente.println(SERVIDOR_HOST);
-  cliente.println(F("Content-Type: application/json"));
-  cliente.print(F("Content-Length: "));
-  cliente.println(json.length());
-  cliente.println(F("Connection: close"));
-  cliente.println();
-  cliente.print(json);
+  clienteDatos.print(F("POST "));
+  clienteDatos.print(SERVIDOR_RUTA);
+  clienteDatos.println(F(" HTTP/1.1"));
+  clienteDatos.print(F("Host: "));
+  clienteDatos.println(SERVIDOR_HOST);
+  clienteDatos.println(F("Content-Type: application/json"));
+  clienteDatos.print(F("Content-Length: "));
+  clienteDatos.println(json.length());
+  clienteDatos.println(F("Connection: keep-alive"));
+  clienteDatos.println();
+  clienteDatos.print(json);
 
-  uint32_t espera = millis();
-  while (cliente.connected() && millis() - espera < 3000) {
-    if (cliente.available()) {
-      cliente.read();
-    }
-  }
-  cliente.stop();
+  // Si el servidor cerró la conexión mientras tanto, la próxima llamada
+  // va a detectar !connected() y reconectar sola.
+  if (!clienteDatos.connected()) clienteDatos.stop();
 
   Serial.println(F("Datos enviados."));
 }
