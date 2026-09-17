@@ -57,7 +57,7 @@ const uint8_t  CONFIRMACIONES     = 3;
 const uint16_t DURACION_ALARMA    = 5000;
 const uint16_t INTERVALO_LECTURA  = 50;
 const uint16_t INTERVALO_PANTALLA = 400;
-const uint16_t INTERVALO_ENVIO    = 2000;
+const uint16_t INTERVALO_ENVIO    = 1000;
 
 // ---------------- ESTADO ----------------
 uint16_t luzBase = 0;
@@ -136,15 +136,19 @@ void enviarDatos() {
     return;
   }
 
+  uint32_t tInicio = millis();
+
   // Descarta, sin bloquear, cualquier resto de la respuesta anterior.
   while (clienteDatos.available()) clienteDatos.read();
 
-  if (!clienteDatos.connected()) {
+  bool reconecto = !clienteDatos.connected();
+  if (reconecto) {
     if (!clienteDatos.connect(SERVIDOR_HOST, SERVIDOR_PUERTO)) {
       Serial.println(F("No se pudo conectar al servidor."));
       return;
     }
   }
+  uint32_t tConectado = millis();
 
   String json = "{";
   json += "\"sonido\":" + String(ultSonido) + ",";
@@ -174,7 +178,14 @@ void enviarDatos() {
   // va a detectar !connected() y reconectar sola.
   if (!clienteDatos.connected()) clienteDatos.stop();
 
-  Serial.println(F("Datos enviados."));
+  uint32_t tFin = millis();
+  Serial.print(F("Datos enviados. "));
+  Serial.print(reconecto ? F("[reconecto] ") : F("[reuso] "));
+  Serial.print(F("conectar="));
+  Serial.print(tConectado - tInicio);
+  Serial.print(F("ms enviar="));
+  Serial.print(tFin - tConectado);
+  Serial.println(F("ms"));
 }
 
 // ================ PANTALLA LCD ================
