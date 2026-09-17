@@ -1194,6 +1194,10 @@ socketDatos.on('connect_error', () => {
   document.getElementById('statusSub').textContent = 'Sesión vencida — volvé a entrar.';
 });
 
+// Red de seguridad: si el socket se cae o el hosting lo corta (proxy,
+// reconexión, etc.) esto igual garantiza como mucho 3s de demora.
+setInterval(cargarDatos, 3000);
+
 // Precarga el reconocimiento facial en segundo plano apenas entrás al
 // dashboard (no espera a que toques la pestaña Cámara), para que cuando la
 // abras ya esté todo listo en vez de tener que esperar la descarga ahí.
