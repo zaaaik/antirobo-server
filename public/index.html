@@ -530,10 +530,10 @@
 /* ---------------- Config / escalas de visualización ----------------
    "sonido" y "luz" son lecturas analógicas crudas del Arduino (0–1023),
    no dB/lux reales — se etiquetan así solo por estética visual.
-   SONIDO_UMBRAL debe coincidir con UMBRAL_SONIDO en arduino/antirobo.ino;
-   si cambiás uno, cambiá el otro. */
+   Los umbrales de sonido y luz NO están fijos acá: cada módulo tiene su
+   propio nivel de reposo, así que el Arduino los calibra al arrancar y
+   los manda en cada POST como d.sonidoUmbral y d.luzUmbral. */
 const SONIDO_MAX = 1023;     // escala de la barra de sonido (rango del ADC)
-const SONIDO_UMBRAL = 410;   // debe coincidir con UMBRAL_SONIDO del Arduino
 const LUZ_MAX = 1023;        // escala de la barra de luz (rango del ADC)
 
 /* "Movimiento" se calcula con el HC-SR04 (sensor de distancia): si algo
@@ -1084,11 +1084,10 @@ function renderDatos(d) {
     const pctLuz = Math.min(100, (d.luz / LUZ_MAX) * 100);
     const pctMov = d.distancia > 0 ? Math.min(100, Math.max(0, 100 - (d.distancia / DISTANCIA_RANGO) * 100)) : 0;
 
-    const sonidoActivo = d.sonido > SONIDO_UMBRAL;
-
-    // El umbral de luz se calibra en el Arduino al arrancar y llega en
-    // d.luzUmbral (ver arduino/antirobo.ino). Si todavía no llegó ningún
-    // dato con ese campo (firmware viejo), no marcamos Luz como activada.
+    // Los umbrales de sonido y luz los calibra el Arduino al arrancar según
+    // el módulo que tenga conectado, y llegan en cada dato. Si todavía no
+    // llegó ninguno con esos campos (firmware viejo), no marcamos activado.
+    const sonidoActivo = d.sonidoUmbral != null && d.sonido > d.sonidoUmbral;
     const luzActiva = d.luzUmbral != null && d.luz > d.luzUmbral;
 
     const barraSonido = document.getElementById('barraSonido');
@@ -1122,7 +1121,9 @@ function renderDatos(d) {
       alertDetail.hidden = false;
 
       // Detalle de qué se activó
-      document.getElementById('detSonidoValor').textContent = d.sonido + ' dB · umbral ' + SONIDO_UMBRAL;
+      document.getElementById('detSonidoValor').textContent = d.sonidoUmbral != null
+        ? d.sonido + ' dB · umbral ' + d.sonidoUmbral
+        : d.sonido + ' dB · normal';
       document.getElementById('detMovValor').textContent = d.distancia + ' cm · umbral ' + DISTANCIA_UMBRAL;
       document.getElementById('detLuzValor').textContent = d.luzUmbral != null
         ? d.luz + ' lux · umbral ' + d.luzUmbral

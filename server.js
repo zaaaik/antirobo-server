@@ -159,8 +159,9 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 // ---------------- ESTADO EN MEMORIA ----------------
 let estado = {
   sonido: 0,
+  sonidoUmbral: null, // umbral de ruido calibrado por el Arduino al arrancar
   luz: 0,
-  luzUmbral: null,   // umbral de "sin luz" calibrado por el Arduino al arrancar
+  luzUmbral: null,    // umbral de "sin luz" calibrado por el Arduino al arrancar
   distancia: 0,
   alarma: false,
   confirmadas: 0,
@@ -182,12 +183,13 @@ let ultimaFoto = null;   // { foto: "data:image/jpeg;base64,...", fecha: ISOStri
 
 // El Arduino envía datos aquí (POST)
 app.post('/api/datos', (req, res) => {
-  const { sonido, luz, luzUmbral, distancia, alarma, confirmadas, objetivo, alertas, segundos } = req.body;
+  const { sonido, sonidoUmbral, luz, luzUmbral, distancia, alarma, confirmadas, objetivo, alertas, segundos } = req.body;
 
   const alarmaEstabaActiva = estado.alarma; // para detectar cuándo ARRANCA una alarma nueva
 
   estado = {
     sonido: sonido ?? estado.sonido,
+    sonidoUmbral: sonidoUmbral ?? estado.sonidoUmbral,
     luz: luz ?? estado.luz,
     luzUmbral: luzUmbral ?? estado.luzUmbral,
     distancia: distancia ?? estado.distancia,
