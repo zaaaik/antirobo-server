@@ -15,6 +15,7 @@ const webpush = require('web-push');
 const User = require('./models/User');
 const Persona = require('./models/Persona');
 const Suscripcion = require('./models/Suscripcion');
+const Config = require('./models/Config');
 const { crearToken, requireAuth, JWT_SECRET } = require('./middleware/auth');
 
 const app = express();
@@ -73,6 +74,34 @@ async function notificarATodos(titulo, cuerpo) {
   }));
 
   return { totalSuscripciones: suscripciones.length, enviados, errores };
+}
+
+// ---------------- SMS (Twilio) ----------------
+// Credenciales sólo por variables de entorno; el número destino se guarda en la base.
+const twilioCliente = (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM)
+  ? require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
+if (!twilioCliente) console.warn('TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM no configurados: los SMS no van a funcionar.');
+
+const MENSAJE_SMS = 'ALERTA DE INTRUSION\nrevise la aplicación para mas detalles';
+const TELEFONO_VALIDO = /^\+[1-9]\d{7,14}$/;
+
+async function obtenerTelefonoSms() {
+  const c = await Config.findById('general');
+  return c ? c.smsTelefono : '';
+}
+
+async function enviarSms(cuerpo) {
+  if (!twilioCliente) return { ok: false, error: 'El servidor no tiene configurado Twilio.' };
+  const telefono = await obtenerTelefonoSms();
+  if (!telefono) return { ok: false, error: 'No hay ningún número configurado.' };
+  try {
+    await twilioCliente.messages.create({ from: process.env.TWILIO_FROM, to: telefono, body: cuerpo });
+    return { ok: true };
+  } catch (err) {
+    console.error('Error enviando SMS:', err.code, err.message);
+    return { ok: false, error: err.message };
+  }
 }
 
 // ---------------- BASE DE DATOS ----------------
@@ -216,6 +245,7 @@ app.post('/api/datos', (req, res) => {
 
     notificarATodos('⚠️ Alerta de intrusión', 'Sonido: ' + estado.sonido + ' · Luz: ' + estado.luz + ' · Distancia: ' + estado.distancia + ' cm')
       .catch(err => console.error('Error al notificar:', err.message));
+    enviarSms(MENSAJE_SMS).catch(err => console.error('Error al enviar SMS:', err.message));
   }
 
   console.log('Datos recibidos:', estado);
@@ -264,6 +294,24 @@ app.post('/api/notificaciones/desuscribir', requireAuth, async (req, res) => {
 app.post('/api/notificaciones/probar', requireAuth, async (req, res) => {
   const resultado = await notificarATodos('🔔 Notificación de prueba', 'Si ves esto, las notificaciones están funcionando.');
   res.json({ ok: true, ...resultado });
+});
+
+// ---------------- SMS ----------------
+app.get('/api/sms/config', requireAuth, async (req, res) => {
+  res.json({ telefono: await obtenerTelefonoSms(), twilioConfigurado: !!twilioCliente });
+});
+
+app.post('/api/sms/config', requireAuth, async (req, res) => {
+  const telefono = String((req.body || {}).telefono || '').replace(/[\s-]/g, '');
+  if (telefono && !TELEFONO_VALIDO.test(telefono)) {
+    return res.status(400).json({ ok: false, error: 'Formato inválido. Usá +código de país y número (ej: +5491122334455).' });
+  }
+  await Config.findByIdAndUpdate('general', { smsTelefono: telefono }, { upsert: true });
+  res.json({ ok: true, telefono });
+});
+
+app.post('/api/sms/probar', requireAuth, async (req, res) => {
+  res.json(await enviarSms('SMS de prueba: las alertas por SMS están funcionando.'));
 });
 
 // ---------------- CÁMARA: foto de respaldo para el historial de alarmas ----------------

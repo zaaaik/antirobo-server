@@ -474,6 +474,19 @@
 
     <button class="btn" id="btnProbarNotif" style="width:100%;margin-top:10px" disabled>Enviar notificación de prueba</button>
 
+    <div class="sensor-card" style="margin-top:16px">
+      <div class="sensor-row" style="margin-bottom:4px">
+        <div class="sensor-name"><span class="sensor-icon azul"><svg class="icon"><use href="#i-bell"/></svg></span>Aviso por SMS</div>
+      </div>
+      <div class="pie" id="smsEstado" style="text-align:left;margin:0 0 12px">Consultando...</div>
+      <input id="smsTelefono" type="tel" placeholder="+5491122334455" autocomplete="tel"
+        style="width:100%;box-sizing:border-box;padding:10px;margin-bottom:10px;border:1px solid var(--border,#ccc);border-radius:8px;font-size:15px">
+      <div class="action-row">
+        <button class="btn" id="btnGuardarSms">Guardar número</button>
+        <button class="btn" id="btnProbarSms">SMS de prueba</button>
+      </div>
+    </div>
+
     <div class="pie" style="margin-top:18px">
       Te va a llegar un aviso a este dispositivo apenas se dispare una alarma, aunque no tengas esta página abierta.
       En iPhone hace falta agregar la app a la pantalla de inicio para que funcione (Safari → Compartir → Agregar a inicio).
@@ -1025,6 +1038,35 @@ btnActivarNotif.addEventListener('click', async () => {
     notifEstado.textContent = 'No se pudo activar: ' + e.message;
   }
 });
+
+// ---------------- SMS ----------------
+const smsEstado = document.getElementById('smsEstado');
+const smsTelefono = document.getElementById('smsTelefono');
+async function cargarSms() {
+  try {
+    const d = await (await fetch('/api/sms/config')).json();
+    smsTelefono.value = d.telefono || '';
+    smsEstado.textContent = !d.twilioConfigurado ? 'El servidor no tiene configurado Twilio.'
+      : d.telefono ? 'Se enviará un SMS a este número cuando se active la alarma.'
+      : 'Ingresá el número (con +código de país) que recibirá el SMS.';
+  } catch (e) { smsEstado.textContent = 'No se pudo conectar con el servidor.'; }
+}
+document.getElementById('btnGuardarSms').addEventListener('click', async () => {
+  try {
+    const r = await fetch('/api/sms/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ telefono: smsTelefono.value }) });
+    const d = await r.json();
+    smsEstado.textContent = d.ok ? (d.telefono ? 'Número guardado.' : 'Número eliminado: no se enviarán SMS.') : d.error;
+  } catch (e) { smsEstado.textContent = 'No se pudo conectar con el servidor.'; }
+});
+document.getElementById('btnProbarSms').addEventListener('click', async (ev) => {
+  ev.target.disabled = true;
+  try {
+    const d = await (await fetch('/api/sms/probar', { method: 'POST' })).json();
+    smsEstado.textContent = d.ok ? 'SMS de prueba enviado.' : 'Falló el envío: ' + d.error;
+  } catch (e) { smsEstado.textContent = 'No se pudo conectar con el servidor.'; }
+  ev.target.disabled = false;
+});
+cargarSms();
 
 btnProbarNotif.addEventListener('click', async () => {
   btnProbarNotif.disabled = true;
